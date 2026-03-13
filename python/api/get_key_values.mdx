@@ -1,0 +1,159 @@
+---
+title: get_key_values()
+description: Extract individual words with bounding box coordinates and positional metadata.
+---
+
+## Signature
+
+```python
+pymupdf4llm.get_key_values(
+    doc: str | pymupdf.Document,
+    pages: list[int] | None = None,
+    force_ocr: bool = False,
+    ocr: bool = True,
+    ocr_adaptor: OcrAdaptor | None = None,
+) -> list[dict]
+```
+
+---
+
+## Overview
+
+`get_key_values()` returns every word in the document as an individual dictionary, each carrying the word's text, its bounding box on the page, and its positional indices (page, block, line, word). This is the most granular extraction mode available, and is primarily used for redaction pipelines, spatial analysis, document comparison, and training data for layout models.
+
+---
+
+## Parameters
+
+<ParamField path="doc" type="str | pymupdf.Document" required>
+  Path to the document file, or an already-opened `pymupdf.Document` instance. Supports PDF, XPS, eBooks, and — with PyMuPDF Pro — Office formats.
+</ParamField>
+
+<ParamField path="pages" type="list[int]" default="None">
+  Zero-based list of page indices to extract. If `None`, all pages are processed.
+</ParamField>
+
+<ParamField path="force_ocr" type="bool" default="false">
+  When `True`, all pages are sent through OCR regardless of whether they contain selectable text.
+</ParamField>
+
+<ParamField path="ocr" type="bool" default="true">
+  When `True`, pages with no selectable text are automatically sent through OCR. Set to `False` to disable OCR entirely.
+</ParamField>
+
+<ParamField path="ocr_adaptor" type="OcrAdaptor | None" default="None">
+  A custom OCR engine adaptor. If `None`, the default `TesseractAdaptor` is used. See [OCR Adaptors](/guides/ocr#ocr-adaptors).
+</ParamField>
+
+---
+
+## Returns
+
+<ResponseField name="list[dict]" type="list">
+  A flat list of word dictionaries across all extracted pages, in reading order. Each dictionary contains:
+
+  | Key | Type | Description |
+  |-----|------|-------------|
+  | `text` | `str` | The word string |
+  | `bbox` | `list[float]` | Bounding box `[x0, y0, x1, y1]` in PDF points |
+  | `page` | `int` | Zero-based page index |
+  | `block` | `int` | Block index on the page |
+  | `line` | `int` | Line index within the block |
+  | `word` | `int` | Word index within the line |
+
+  Coordinates use PDF point units (1 pt = 1/72 inch) with the origin at the top-left corner of the page.
+</ResponseField>
+
+---
+
+## Raises
+
+| Exception | Condition |
+|-----------|-----------|
+| `FileNotFoundError` | `doc` is a path string that does not exist |
+| `ValueError` | An index in `pages` is out of range for the document |
+| `ImportError` | `ocr=True` or `force_ocr=True` but the `ocr` dependency is not installed |
+| `LicenceError` | Document format requires PyMuPDF Pro which is not activated |
+
+---
+
+## Examples
+
+### Minimal
+
+```python
+import pymupdf4llm
+
+words = pymupdf4llm.get_key_values("document.pdf")
+print(f"{len(words)} words extracted")
+```
+
+### Print words with positions
+
+```python
+for word in words[:20]:
+    print(f"{word['text']:20s}  p{word['page']}  bbox={word['bbox']}")
+```
+
+### Filter to a specific page
+
+```python
+page_0 = [w for w in words if w["page"] == 0]
+```
+
+### Search for a term
+
+```python
+matches = [w for w in words if w["text"].lower() == "revenue"]
+for m in matches:
+    print(f"Found on page {m['page']} at {m['bbox']}")
+```
+
+### Reconstruct lines
+
+```python
+from itertools import groupby
+
+words.sort(key=lambda w: (w["page"], w["block"], w["line"], w["word"]))
+
+for key, group in groupby(words, key=lambda w: (w["page"], w["block"], w["line"])):
+    line_text = " ".join(w["text"] for w in group)
+    print(line_text)
+```
+
+### Export as coordinate dataset
+
+```python
+import json
+from pathlib import Path
+
+dataset = [
+    {"text": w["text"], "x0": w["bbox"][0], "y0": w["bbox"][1],
+     "x1": w["bbox"][2], "y1": w["bbox"][3], "page": w["page"]}
+    for w in words
+]
+
+Path("words.json").write_text(
+    json.dumps(dataset, indent=2, ensure_ascii=False),
+    encoding="utf-8"
+)
+```
+
+---
+
+## See Also
+
+<CardGroup cols={2}>
+  <Card title="Word-Level Extraction Guide" icon="text-size" href="/guides/word-level-extraction">
+    Spatial filtering, redaction, and ML pipeline examples.
+  </Card>
+  <Card title="to_json()" icon="brackets-curly" href="/api/to_json">
+    Block and span-level data for layout pipelines.
+  </Card>
+  <Card title="OCR" icon="eye" href="/guides/ocr">
+    Word-level extraction on scanned documents.
+  </Card>
+  <Card title="JSON Schema" icon="file-code" href="/reference/json-schema">
+    Full output field reference.
+  </Card>
+</CardGroup>

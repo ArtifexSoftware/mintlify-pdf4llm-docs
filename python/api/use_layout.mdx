@@ -1,0 +1,135 @@
+---
+title: use_layout()
+description: Analyse the visual layout of a page to determine reading order, column structure, and content regions.
+---
+
+## Signature
+
+```python
+pymupdf4llm.use_layout(
+    doc: str | pymupdf.Document,
+    pages: list[int] | None = None,
+    margins: tuple[float, float, float, float] = (0, 0, 0, 0),
+) -> list[dict]
+```
+
+---
+
+## Overview
+
+`use_layout()` runs the layout analysis engine on a document and returns a structured description of each page's visual regions — columns, headers, body text, sidebars, and figures — without performing full text extraction. This is useful when you need to inspect or debug how PyMuPDF4LLM interprets a document's structure before running extraction, or when you want to build a custom extraction pipeline on top of the raw layout data.
+
+When passed as `use_layout=True` to `to_markdown()` or `to_json()`, the same engine is used internally to determine reading order before assembling the output.
+
+<Note>
+  `use_layout()` requires the `layout` optional dependency. See [Installation](/getting-started/installation).
+</Note>
+
+---
+
+## Parameters
+
+<ParamField path="doc" type="str | pymupdf.Document" required>
+  Path to the document file, or an already-opened `pymupdf.Document` instance.
+</ParamField>
+
+<ParamField path="pages" type="list[int]" default="None">
+  Zero-based list of page indices to analyse. If `None`, all pages are processed.
+</ParamField>
+
+<ParamField path="margins" type="tuple[float, float, float, float]" default="(0, 0, 0, 0)">
+  Page margins in PDF points `(left, top, right, bottom)`. Regions outside the crop area are excluded from layout analysis.
+</ParamField>
+
+---
+
+## Returns
+
+<ResponseField name="list[dict]" type="list">
+  A list of page layout objects, one per analysed page.
+
+  | Key | Type | Description |
+  |-----|------|-------------|
+  | `page` | `int` | Zero-based page index |
+  | `width` | `float` | Page width in PDF points |
+  | `height` | `float` | Page height in PDF points |
+  | `regions` | `list[dict]` | Ordered list of detected layout regions |
+
+  Each region contains:
+
+  | Key | Type | Description |
+  |-----|------|-------------|
+  | `type` | `str` | Region type: `"body"`, `"header"`, `"footer"`, `"figure"`, `"sidebar"`, `"column"` |
+  | `bbox` | `list[float]` | Bounding box `[x0, y0, x1, y1]` in PDF points |
+  | `order` | `int` | Reading order index assigned by the layout engine |
+  | `column` | `int \| None` | Column index if the region is part of a multi-column layout |
+</ResponseField>
+
+---
+
+## Raises
+
+| Exception | Condition |
+|-----------|-----------|
+| `FileNotFoundError` | `doc` is a path string that does not exist |
+| `ValueError` | An index in `pages` is out of range for the document |
+| `ImportError` | The `layout` optional dependency is not installed |
+
+---
+
+## Examples
+
+### Inspect layout regions on page 0
+
+```python
+import pymupdf4llm
+
+layout = pymupdf4llm.use_layout("document.pdf", pages=[0])
+
+for region in layout[0]["regions"]:
+    print(f"{region['type']:10s}  order={region['order']}  bbox={region['bbox']}")
+```
+
+### Identify multi-column pages
+
+```python
+layout = pymupdf4llm.use_layout("document.pdf")
+
+for page in layout:
+    columns = {r["column"] for r in page["regions"] if r["column"] is not None}
+    if len(columns) > 1:
+        print(f"Page {page['page']} has {len(columns)} columns")
+```
+
+### Use layout as a pre-pass before extraction
+
+```python
+import pymupdf4llm
+
+# Check layout first
+layout = pymupdf4llm.use_layout("document.pdf", pages=[0])
+region_types = {r["type"] for r in layout[0]["regions"]}
+print(f"Page 0 contains: {region_types}")
+
+# Then extract with layout enabled
+md = pymupdf4llm.to_markdown("document.pdf", use_layout=True)
+```
+
+---
+
+## See Also
+
+<CardGroup cols={2}>
+  <Card title="Extract Markdown" icon="markdown" href="/guides/extract-markdown">
+    Pass use_layout=True to to_markdown() for better reading order.
+  </Card>
+  <Card title="Headers & Footers" icon="rectangle" href="/concepts/headers-footers">
+    How layout analysis interacts with header and footer detection.
+  </Card>
+  <Card title="to_markdown()" icon="code" href="/api/to_markdown">
+    Full to_markdown() API reference.
+  </Card>
+  <Card title="to_json()" icon="brackets-curly" href="/api/to_json">
+    Full to_json() API reference.
+  </Card>
+</CardGroup>

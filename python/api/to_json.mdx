@@ -1,0 +1,155 @@
+---
+title: to_json()
+description: Extract document content as structured JSON with bounding boxes, layout data, and per-block metadata.
+---
+
+## Signature
+
+```python
+pymupdf4llm.to_json(
+    doc: str | pymupdf.Document,
+    pages: list[int] | None = None,
+    extract_tables: bool = True,
+    margins: tuple[float, float, float, float] = (0, 0, 0, 0),
+    force_ocr: bool = False,
+    ocr: bool = True,
+    ocr_adaptor: OcrAdaptor | None = None,
+) -> list[dict]
+```
+
+---
+
+## Parameters
+
+<ParamField path="doc" type="str | pymupdf.Document" required>
+  Path to the document file, or an already-opened `pymupdf.Document` instance. Supports PDF, XPS, eBooks, and — with PyMuPDF Pro — Office formats.
+</ParamField>
+
+<ParamField path="pages" type="list[int]" default="None">
+  Zero-based list of page indices to extract. If `None`, all pages are processed. Order is preserved in the output.
+</ParamField>
+
+<ParamField path="extract_tables" type="bool" default="true">
+  When `True`, detected tables are returned as structured `"table"` blocks with row and cell data. Set to `False` to treat table content as text blocks.
+</ParamField>
+
+<ParamField path="margins" type="tuple[float, float, float, float]" default="(0, 0, 0, 0)">
+  Page margins in PDF points `(left, top, right, bottom)` applied before extraction. Content outside the crop area is ignored.
+</ParamField>
+
+<ParamField path="force_ocr" type="bool" default="false">
+  When `True`, all pages are sent through OCR regardless of whether they contain selectable text.
+</ParamField>
+
+<ParamField path="ocr" type="bool" default="true">
+  When `True`, pages with no selectable text are automatically sent through OCR. Set to `False` to disable OCR entirely.
+</ParamField>
+
+<ParamField path="ocr_adaptor" type="OcrAdaptor | None" default="None">
+  A custom OCR engine adaptor. If `None`, the default `TesseractAdaptor` is used. See [OCR Adaptors](/guides/ocr#ocr-adaptors).
+</ParamField>
+
+---
+
+## Returns
+
+<ResponseField name="list[dict]" type="list">
+  A list of page objects, one per extracted page. See [JSON Schema](/reference/json-schema) for the full field reference.
+
+  Each page object contains:
+
+  | Key | Type | Description |
+  |-----|------|-------------|
+  | `page` | `int` | Zero-based page index |
+  | `width` | `float` | Page width in PDF points |
+  | `height` | `float` | Page height in PDF points |
+  | `blocks` | `list[dict]` | Ordered list of content blocks |
+
+  Each block has a `type` field — `"text"`, `"image"`, `"table"`, or `"drawing"` — and type-specific fields. See [Extract JSON](/guides/extract-json) for detailed block structure examples.
+</ResponseField>
+
+---
+
+## Raises
+
+| Exception | Condition |
+|-----------|-----------|
+| `FileNotFoundError` | `doc` is a path string that does not exist |
+| `ValueError` | An index in `pages` is out of range for the document |
+| `ImportError` | `ocr=True` or `force_ocr=True` but the `ocr` dependency is not installed |
+| `LicenceError` | Document format requires PyMuPDF Pro which is not activated |
+
+---
+
+## Examples
+
+### Minimal
+
+```python
+import pymupdf4llm
+
+data = pymupdf4llm.to_json("document.pdf")
+```
+
+### Iterate over text blocks
+
+```python
+for page in data:
+    for block in page["blocks"]:
+        if block["type"] == "text":
+            for line in block["lines"]:
+                for span in line["spans"]:
+                    print(span["text"], span["size"], span["font"])
+```
+
+### Extract all bounding boxes
+
+```python
+for page in data:
+    for block in page["blocks"]:
+        print(f"p{page['page']} {block['type']:8s} bbox={block['bbox']}")
+```
+
+### Save to file
+
+```python
+import json
+from pathlib import Path
+
+data = pymupdf4llm.to_json("document.pdf")
+Path("output.json").write_text(
+    json.dumps(data, indent=2, ensure_ascii=False),
+    encoding="utf-8"
+)
+```
+
+### Filter image blocks and decode
+
+```python
+import base64
+from pathlib import Path
+
+for page in data:
+    for i, block in enumerate(b for b in page["blocks"] if b["type"] == "image"):
+        img_bytes = base64.b64decode(block["image"])
+        Path(f"page-{page['page']}-img-{i}.{block['ext']}").write_bytes(img_bytes)
+```
+
+---
+
+## See Also
+
+<CardGroup cols={2}>
+  <Card title="Extract JSON Guide" icon="brackets-curly" href="/guides/extract-json">
+    Full walkthrough with bounding boxes, span flags, and pipeline examples.
+  </Card>
+  <Card title="JSON Schema" icon="file-code" href="/reference/json-schema">
+    Complete field reference for every object in the JSON output.
+  </Card>
+  <Card title="to_markdown()" icon="markdown" href="/api/to_markdown">
+    Markdown output for LLM ingestion and readable docs.
+  </Card>
+  <Card title="Tables Guide" icon="table" href="/guides/tables">
+    Working with table blocks in the JSON output.
+  </Card>
+</CardGroup>

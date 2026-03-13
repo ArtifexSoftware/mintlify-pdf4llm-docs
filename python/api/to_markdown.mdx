@@ -1,0 +1,319 @@
+---
+title: to_markdown()
+description: Extract document content as a Markdown string or list of per-page chunk dictionaries.
+---
+
+## Signature
+
+```python
+pymupdf4llm.to_markdown(doc: pymupdf.Document | str, *, 
+    detect_bg_color: bool = True, 
+    dpi: int = 150, 
+    embed_images: bool = False, 
+    extract_words: bool = False, 
+    filename: str | None = None, 
+    fontsize_limit: float = 3, 
+    footer: bool = True, 
+    force_ocr: bool = False, 
+    force_text: bool = True, 
+    graphics_limit: int = None, 
+    hdr_info: Any = None, 
+    header: bool = True, 
+    ignore_alpha: bool = False, 
+    ignore_code: bool = False, 
+    ignore_graphics: bool = False, 
+    ignore_images: bool = False, 
+    image_format: str = "png", 
+    image_path: str = "", 
+    image_size_limit: float = 0.05, 
+    margins: float | list = 0, 
+    ocr_dpi: int = 300, 
+    ocr_function: callable = None, 
+    ocr_language: str = "eng", 
+    page_chunks: bool = False, 
+    page_height: float = None, 
+    page_separators: bool = False, 
+    page_width: float = 612, 
+    pages: list | range | None = None, 
+    show_progress: bool = False, 
+    table_strategy: str = "lines_strict", 
+    use_glyphs: bool = False, 
+    use_ocr: bool = True, 
+    write_images: bool = False) -> str | list[dict]
+) -> str | list[dict]
+```
+
+---
+
+## Parameters
+
+<ParamField path="doc" type="str | pymupdf.Document" required>
+  Path to the document file, or an already-opened `pymupdf.Document` instance. Supports PDF, XPS, eBooks, and — with PyMuPDF Pro — Office formats.
+</ParamField>
+
+<ParamField path="detect_bg_color" type="bool" default="True">
+  Does a simple check for the general background color of the pages. If any text or vector has this color it will be ignored. May increase detection accuracy.
+</ParamField>
+
+<ParamField path="dpi" type="int" default="150">
+  Desired image resolution in dots per inch. Relevant only if `write_images=True` or `embed_images=True`.
+</ParamField>
+
+<ParamField path="embed_images" type="bool" default="False">
+  Like `write_images`, but images are included in the Markdown text as base64-encoded strings. Mutually exclusive with `write_images` — ignores `image_path`. May drastically increase the size of the Markdown output.
+</ParamField>
+
+<ParamField path="extract_words" type="bool" default="False">
+  Enforces `page_chunks=True` and adds a `"words"` key to each page dictionary. Its value is a list of words as delivered by PyMuPDF's `Page.get_text("words")`, in the same sequence as the extracted text.
+</ParamField>
+
+<ParamField path="filename" type="str">
+  Overwrites or sets the desired image file name for written images. Useful when the document is provided as a memory object with no inherent file name.
+</ParamField>
+
+<ParamField path="fontsize_limit" type="float" default="3">
+  Minimum font size to consider for text extraction. Text with a font size below this threshold is excluded. Default of `3` means only text with a font size `>= 3` will be extracted.
+</ParamField>
+
+<ParamField path="footer" type="bool" default="True">
+  Controls whether footer text is included in the extraction output. Set to `False` to omit repetitive footer content that does not add value to the extracted data.
+</ParamField>
+
+<ParamField path="force_ocr" type="bool" default="False">
+  When `True`, OCR is applied to all pages regardless of their content. Useful for documents known to be image-based that do not meet the default criteria for automatic OCR. When `False`, OCR is only applied to pages that meet the default criteria.
+
+  <Warning>
+    Requires `ocr_function` to be specified — an exception will be raised if it is not.
+  </Warning>
+</ParamField>
+
+<ParamField path="force_text" type="bool" default="False">
+  Generate text output even when text overlaps images or graphics. The overlapping text will appear after the respective image in the output.
+</ParamField>
+
+<ParamField path="graphics_limit" type="int">
+  Limits processing of vector graphics elements. If the number of vector graphics on a page exceeds this threshold, all vector graphics on that page are ignored. Useful for scientific documents or pages that simulate text via graphics commands, which can contain tens of thousands of objects and cause intolerable runtimes.
+</ParamField>
+
+<ParamField path="hdr_info" type="callable | object | bool">
+  Custom header detection logic. Accepts a callable or an object with a `get_header_id` method. Must accept a text span dictionary (as returned by `extractDICT`) and a keyword argument `page` (the owning `Page` object), and must return either `""` or a string of up to 6 `#` characters followed by a space.
+
+  If `None`, a full document scan is performed to identify the most popular font sizes and derive header levels from them. To skip header detection entirely, pass `hdr_info=False` or `hdr_info=lambda s, page=None: ""`.
+</ParamField>
+
+<ParamField path="header" type="bool" default="True">
+  Controls whether header text is included in the extraction output. Set to `False` to omit repetitive header content that does not add value to the extracted data.
+</ParamField>
+
+<ParamField path="ignore_alpha" type="bool" default="False">
+  When `True`, includes text that is completely transparent. By default, transparent text is ignored, which usually increases detection accuracy.
+</ParamField>
+
+<ParamField path="ignore_code" type="bool" default="False">
+  When `True`, monospaced text lines are not given special formatting and no code blocks are generated. Automatically set to `True` when `extract_words=True`.
+</ParamField>
+
+<ParamField path="ignore_graphics" type="bool" default="False">
+  Disregards all vector graphics on the page. Useful for crowded pages such as presentation slides, and speeds up processing time. Automatically disables table detection.
+</ParamField>
+
+<ParamField path="ignore_images" type="bool" default="False">
+  Disregards all images on the page. Useful for crowded pages such as presentation slides, and speeds up processing time.
+</ParamField>
+
+<ParamField path="image_format" type="str" default="png">
+  Desired output format for extracted images, specified as a file extension. Common values are `"png"` and `"jpg"`. All PyMuPDF supported output image formats are accepted.
+</ParamField>
+
+<ParamField path="image_path" type="str">
+  Directory in which to save extracted images. Relevant only when `write_images=True`. Defaults to the script's directory.
+</ParamField>
+
+<ParamField path="image_size_limit" type="float" default="0.05">
+  A value in the range `0 <= value < 1`. Images are excluded from output if their width is less than or equal to `image_size_limit × page width`, or their height is less than or equal to `image_size_limit × page height`. The default of `0.05` means an image's width and height must each exceed 5% of the page dimensions to be included.
+</ParamField>
+
+<ParamField path="margins" type="float | list[float]" default="0">
+  Page border margins. Only content within the specified margins is considered for extraction. Accepts a single float or a sequence of 2 or 4 floats:
+
+  - A single float `f` expands to `(f, f, f, f)` — equal margins on all sides.
+  - A 2-element sequence `(top, bottom)` expands to `(0, top, 0, bottom)`.
+  - A 4-element sequence specifies `(left, top, right, bottom)` directly.
+  - The default `0` reads the full page with no margins applied.
+</ParamField>
+
+<ParamField path="ocr_dpi" type="int" default="300">
+  Image resolution in dots per inch used when rendering a page to an intermediate image for OCR. Only relevant for pages determined to benefit from OCR (e.g. pages with little or no text, or pages largely covered by images or character-like vectors). Higher values may improve OCR precision but increase memory usage and processing time, and risk over-sharpening the image. The default of `300` should be sufficient for most documents.
+</ParamField>
+
+<ParamField path="ocr_function" type="callable">
+  A custom OCR function to use in place of the built-in Tesseract engine. If `None`, Tesseract is used automatically. See the OCR engines documentation for the expected function signature.
+</ParamField>
+
+<ParamField path="ocr_language" type="str" default="eng">
+  Language code passed to the Tesseract OCR engine. Defaults to `"eng"` (English). Multiple languages can be combined with a `+` separator — for example, `"eng+deu"` for English and German. Ensure the corresponding Tesseract language data files are installed before use.
+</ParamField>
+
+<ParamField path="page_chunks" type="bool" default="False">
+  When `True`, returns a list of dictionaries — one per page — instead of a single string. Each dictionary has the following keys:
+
+  **`metadata`** — a dictionary containing the document's standard metadata, enriched with three additional keys:
+
+  | Key | Description |
+  |-----|-------------|
+  | `file_path` | Source file name |
+  | `page_count` | Total number of pages in the document |
+  | `page_number` | 1-based page number |
+
+  **`toc_items`** — a list of Table of Contents entries pointing to this page. Each item has the format `[lvl, title, pagenumber]`, where `lvl` is the hierarchy level, `title` is a string, and `pagenumber` is a 1-based integer.
+
+  **`tables`** — a list of tables detected on the page. Each item is a dictionary with keys `bbox` (a `pymupdf.Rect` in tuple format giving the table's position), `row_count`, and `col_count`.
+
+  **`images`** — a list of images on the page, as returned by `Page.get_image_info()`.
+
+  **`graphics`** — a list of bounding boxes for clustered vector graphics on the page, as returned by `Page.cluster_drawings()`.
+
+  **`text`** — the page content as a Markdown string.
+
+  **`words`** — populated when `extract_words=True`. A list of tuples `(x0, y0, x1, y1, "wordstring", bno, lno, wno)` as returned by `page.get_text("words")`. The sequence of tuples matches the reading order of the Markdown text, including correct ordering across multi-column layouts and table row cells.
+
+  **`page_boxes`** — a list of layout boundary box dictionaries. Each dictionary has the following structure:
+```json
+  {
+    "index": 0,                      // 0-based reading order index
+    "class": "text",                 // region type: "text", "picture", "table", etc.
+    "bbox": [x0, y0, x1, y1],       // boundary box coordinates
+    "pos": [start, stop]             // slice indices into chunk["text"]
+  }
+```
+
+  The `pos` field gives the character range of this box's content within the page's `"text"` string: `box_text = chunk["text"][start:stop]`.
+</ParamField>
+
+<ParamField path="page_height" type="float" default="None">
+  Desired page height in points. Only relevant for reflowable documents — see `page_width`. When `None`, the document is treated as a single large page with no Markdown page separators in the output (or a single chunk if `page_chunks=True`).
+</ParamField>
+
+<ParamField path="page_separators" type="bool" default="False">
+  When `True`, inserts a separator string `--- end of page=n ---` (wrapped with line breaks) at the end of each page's output. Page numbers are 0-based. Intended for debugging purposes.
+</ParamField>
+
+<ParamField path="page_width" type="float" default="612">
+  Desired page width in points. Ignored for documents with fixed page dimensions such as PDF and XPS. For reflowable documents — e-books, Office files, and plain text files — which have no fixed page size, the default assumes Letter format width (`612`) with unlimited page height, meaning the entire document is treated as one large page.
+</ParamField>
+
+<ParamField path="pages" type="list[int]" default="None">
+  The pages to include in the output, specified as 0-based page numbers. Accepts any Python sequence of integers. The sequence is automatically sorted and deduplicated. If `None`, all pages are processed.
+</ParamField>
+
+<ParamField path="show_progress" type="bool" default="False">
+  When `True`, displays a progress bar as pages are converted. Uses the [`tqdm`](https://pypi.org/project/tqdm/) package if installed, otherwise falls back to a built-in text-based progress bar.
+</ParamField>
+
+<ParamField path="table_strategy" type="str" default="lines_strict">
+  The table detection strategy to use. The default `"lines_strict"` ignores background colours. Alternative strategies such as `"lines"` use all vector graphics objects for detection and may perform better on some documents. See `Page.find_tables()` for all available strategies.
+</ParamField>
+
+<ParamField path="use_glyphs" type="bool" default="False">
+  When `True`, uses the glyph number of a character instead of its Unicode value for fonts that do not store Unicode mappings. Useful for documents with non-standard or symbolic fonts.
+</ParamField>
+
+<ParamField path="use_ocr" type="bool" default="False">
+  When `True`, applies OCR to pages that meet the default criteria for OCR processing. See `force_ocr` to apply OCR unconditionally to all pages.
+</ParamField>
+
+<ParamField path="write_images" type="bool" default="False">
+  When `True`, images and vector graphics are rasterised from their page area and saved to disk. Markdown image references are inserted inline at the corresponding positions. Text within those areas is excluded from the text output and appears only as part of the saved image.
+
+  <Warning>
+    If your document contains text rendered on top of full-page background images, set `write_images=False` to ensure that text is extracted rather than captured as part of the image.
+  </Warning>
+
+  When using PyMuPDF Layout mode, regions classified as `"picture"` by the layout module are treated as images regardless of whether they contain text, images, or vector graphics. If `force_text=True` is also set, text within those regions is still extracted and appended after the image reference.
+</ParamField>
+
+---
+
+## Returns
+
+<ResponseField name="str" type="string">
+  When `page_chunks=False` (default). A single Markdown string containing the content of all extracted pages, concatenated in order.
+</ResponseField>
+
+<ResponseField name="list[dict]" type="list">
+  When `page_chunks=True`. A list of dictionaries, one per extracted page, each with the following keys:
+
+  | Key | Type | Description |
+  |-----|------|-------------|
+  | `text` | `str` | Markdown content of the page |
+  | `metadata` | `dict` | Page metadata — see [Page Chunking](/concepts/page-chunking) for the full schema |
+</ResponseField>
+
+---
+
+## Raises
+
+| Exception | Condition |
+|-----------|-----------|
+| `FileNotFoundError` | `doc` is a path string that does not exist |
+| `ValueError` | An index in `pages` is out of range for the document |
+| `ImportError` | `use_layout=True` but the `layout` dependency is not installed |
+| `ImportError` | `ocr=True` or `force_ocr=True` but the `ocr` dependency is not installed |
+
+---
+
+## Examples
+
+### Minimal
+
+```python
+import pymupdf4llm
+
+md = pymupdf4llm.to_markdown("document.pdf")
+```
+
+### Page chunks
+
+```python
+chunks = pymupdf4llm.to_markdown(
+    "document.pdf",
+    page_chunks=True
+)
+for chunk in chunks:
+    print(chunk["metadata"]["page"], chunk["text"][:100])
+```
+
+### Images and specific pages
+
+```python
+md = pymupdf4llm.to_markdown(
+    "document.pdf",
+    pages=[0, 1, 2],
+    write_images=True,
+    image_path="assets/",
+    image_format="png",
+    dpi=300
+)
+```
+
+### Force OCR on all pages
+
+```python
+md = pymupdf4llm.to_markdown("scanned.pdf", force_ocr=True)
+```
+
+---
+
+## See Also
+
+<CardGroup cols={3}>
+  <Card title="Extract Markdown Guide" icon="markdown" href="/python/guides/extract-markdown">
+    Full walkthrough with all common options.
+  </Card>
+  <Card title="to_json()" icon="brackets-curly" href="/python/api/to_json">
+    Structured output with bounding boxes and layout data.
+  </Card>
+  <Card title="to_text()" icon="align-left" href="/python/api/to_text">
+    Plain text output without Markdown syntax.
+  </Card>
+</CardGroup>

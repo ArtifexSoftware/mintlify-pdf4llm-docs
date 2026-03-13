@@ -1,0 +1,90 @@
+---
+title: API Reference
+description: Complete reference for all PyMuPDF4LLM functions and classes.
+---
+
+## Extraction Functions
+
+The three primary extraction functions share a common interface — they all accept a document path or `pymupdf.Document` instance, support the `pages` parameter for partial extraction, and handle OCR automatically.
+
+<CardGroup cols={1}>
+  <Card title="to_markdown()" icon="markdown" href="/python/api/to_markdown">
+    Extract content as a Markdown string or per-page chunk dictionaries. The primary function for LLM ingestion and RAG pipelines.
+  </Card>
+  <Card title="to_json()" icon="brackets-curly" href="/python/api/to_json">
+    Extract content as structured JSON with bounding boxes, font metadata, and layout data for every block on the page.
+  </Card>
+  <Card title="to_text()" icon="align-left" href="/python/api/to_text">
+    Extract content as plain text, stripped of all Markdown syntax.
+  </Card>
+</CardGroup>
+
+---
+
+## Analysis Functions
+
+<CardGroup cols={2}>
+  <Card title="use_layout()" icon="table-columns" href="/python/api/use_layout">
+    Analyse the visual layout of a document and return detected regions — columns, headers, figures, sidebars — with reading order and bounding boxes.
+  </Card>
+  <Card title="get_key_values()" icon="text-size" href="/python/api/get_key_values">
+    Extract every word in the document as an individual dictionary with its bounding box and positional indices. Used for redaction, search, and ML pipelines.
+  </Card>
+</CardGroup>
+
+---
+
+## Classes
+
+<CardGroup cols={1}>
+  <Card title="LlamaMarkdownReader" icon="database" href="/python/api/LlamaMarkdownReader">
+    A LlamaIndex `BaseReader` implementation. Loads documents as `Document` objects for use in LlamaIndex pipelines and vector stores.
+  </Card>
+  <Card title="IdentifyHeaders" icon="rectangle" href="/python/api/IdentifyHeaders">
+    Detects repeating page headers and footers. Returns bounding boxes and a `get_margins()` helper for passing directly to extraction functions.
+  </Card>
+  <Card title="TocHeaders" icon="list" href="/python/api/TocHeaders">
+    Extracts heading hierarchy from an embedded table of contents or infers it from font sizes. Returns a structured list of heading entries with levels and page numbers.
+  </Card>
+</CardGroup>
+
+---
+
+## Utilities
+
+<CardGroup cols={1}>
+  <Card title="version" icon="tag" href="/python/api/version">
+    Returns the version string for PyMuPDF4LLM.
+  </Card>
+</CardGroup>
+
+---
+
+## Quick Reference
+
+| Function / Class | Returns | Key Parameters |
+|------------------|---------|----------------|
+| `to_markdown()` | `str` or `list[dict]` | `pages`, `page_chunks`, `use_layout`, `write_images` |
+| `to_json()` | `list[dict]` | `pages`, `extract_tables`, `margins` |
+| `to_text()` | `str` or `list[dict]` | `pages`, `page_chunks`, `page_separator` |
+| `use_layout()` | `list[dict]` | `pages`, `margins` |
+| `get_key_values()` | `list[dict]` | `pages`, `force_ocr` |
+| `LlamaMarkdownReader.load_data()` | `list[Document]` | `file`, `pages`, `extra_info` |
+| `IdentifyHeaders.get_margins()` | `tuple` | `body_limit` |
+| `TocHeaders.headers` | `list[dict]` | `body_limit` |
+| `version()` | `dict` | — |
+
+---
+
+## Common Parameters
+
+All extraction functions share the following parameters:
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `doc` | `str \| pymupdf.Document` | — | Document path or open instance |
+| `pages` | `list[int]` | `None` (all) | Zero-based page indices to extract |
+| `margins` | `tuple[float, float, float, float]` | `(0,0,0,0)` | Crop margins in PDF points |
+| `force_ocr` | `bool` | `False` | Force OCR on all pages |
+| `ocr` | `bool` | `True` | Enable automatic OCR on image-only pages |
+| `ocr_adaptor` | `OcrAdaptor \| None` | `None` | Custom OCR engine |

@@ -1,0 +1,305 @@
+---
+title: LangChain
+description: Use PyMuPDF4LLM as a LangChain document loader to feed PDF content into chains, agents, and retrieval pipelines.
+---
+
+## Overview
+
+PyMuPDF4LLM integrates with LangChain through a custom document loader that wraps `to_markdown()` and returns LangChain `Document` objects. Each document carries the page's Markdown content in its `page_content` field and PyMuPDF4LLM's page metadata in its `metadata` field.
+
+```python
+from langchain_pymupdf4llm import PyMuPDF4LLMLoader
+
+loader = PyMuPDF4LLMLoader("document.pdf")
+documents = loader.load()
+```
+
+---
+
+## Installation
+
+Make sure PyMuPDF4LLM LangChain is installed:
+
+```bash
+pip install -qU langchain-pymupdf4llm
+```
+
+---
+
+## Basic Usage
+
+`PyMuPDF4LLMLoader` follows the LangChain `BaseLoader` interface. Call `load()` to get a list of `Document` objects — one per page.
+
+```python
+from langchain_pymupdf4llm import PyMuPDF4LLMLoader
+
+loader = PyMuPDF4LLMLoader("report.pdf")
+documents = loader.load()
+
+print(f"Loaded {len(documents)} page(s)")
+for doc in documents:
+    print(doc.page_content[:200])
+    print(doc.metadata)
+```
+
+---
+
+## Document Structure
+
+Each `Document` contains:
+
+- **`page_content`** — the Markdown text of the page
+- **`metadata`** — a dictionary of page and document-level metadata
+
+```python
+doc = documents[0]
+
+print(doc.page_content)   # Markdown string
+print(doc.metadata)       # Metadata dict
+```
+
+Example metadata:
+
+```json
+{
+  "page": 0,
+  "page_count": 18,
+  "source": "report.pdf",
+  "title": "Q3 Financial Report",
+  "author": "Finance Team",
+  "creation_date": "2025-09-01"
+}
+```
+
+---
+
+## Building a RAG Pipeline
+
+Combine `PyMuPDF4LLMLoader` with LangChain's `Chroma` vector store and a chat model to build a retrieval-augmented generation pipeline:
+
+```python
+from langchain_pymupdf4llm import PyMuPDF4LLMLoader
+from langchain_community.vectorstores import Chroma
+from langchain_openai import OpenAIEmbeddings, ChatOpenAI
+from langchain.chains import RetrievalQA
+
+# Load documents
+loader = PyMuPDF4LLMLoader("report.pdf")
+documents = loader.load()
+
+# Embed and store
+vectorstore = Chroma.from_documents(documents, OpenAIEmbeddings())
+
+# Build QA chain
+qa_chain = RetrievalQA.from_chain_type(
+    llm=ChatOpenAI(model="gpt-4o"),
+    retriever=vectorstore.as_retriever()
+)
+
+response = qa_chain.invoke("What were the main revenue drivers in Q3?")
+print(response["result"])
+```
+
+---
+
+## Text Splitting
+
+For large documents, split pages into smaller chunks before embedding to improve retrieval precision. LangChain's `MarkdownHeaderTextSplitter` is a natural fit because PyMuPDF4LLM output preserves Markdown headings:
+
+```python
+from langchain_pymupdf4llm import PyMuPDF4LLMLoader
+from langchain.text_splitter import MarkdownHeaderTextSplitter
+
+loader = PyMuPDF4LLMLoader("document.pdf")
+documents = loader.load()
+
+splitter = MarkdownHeaderTextSplitter(
+    headers_to_split_on=[
+        ("#", "heading_1"),
+        ("##", "heading_2"),
+        ("###", "heading_3"),
+    ]
+)
+
+chunks = []
+for doc in documents:
+    splits = splitter.split_text(doc.page_content)
+    # Carry original page metadata forward into each chunk
+    for split in splits:
+        split.metadata.update(doc.metadata)
+        chunks.append(split)
+
+print(f"Created {len(chunks)} chunk(s) from {len(documents)} page(s)")
+```
+
+<Tip>
+  `MarkdownHeaderTextSplitter` produces semantically meaningful chunks by splitting on headings rather than character count. This works especially well with PyMuPDF4LLM output because heading structure is faithfully preserved.
+</Tip>
+
+You can also use `RecursiveCharacterTextSplitter` for a simpler fixed-size approach:
+
+```python
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+
+splitter = RecursiveCharacterTextSplitter(
+    chunk_size=1000,
+    chunk_overlap=200
+)
+
+chunks = splitter.split_documents(documents)
+print(f"Created {len(chunks)} chunk(s)")
+```
+
+---
+
+## Lazy Loading
+
+For large documents or memory-constrained environments, use `lazy_load()` to yield documents one at a time rather than loading everything into memory at once:
+
+```python
+from langchain_pymupdf4llm import PyMuPDF4LLMLoader
+
+loader = PyMuPDF4LLMLoader("large-document.pdf")
+
+for doc in loader.lazy_load():
+    print(f"Page {doc.metadata['page']}: {len(doc.page_content)} chars")
+    # Process one page at a time
+```
+
+---
+
+## Loading Multiple Documents
+
+Combine multiple loaders to build an index across a folder of PDFs:
+
+```python
+from pathlib import Path
+from langchain_pymupdf4llm import PyMuPDF4LLMLoader
+from langchain_community.vectorstores import Chroma
+from langchain_openai import OpenAIEmbeddings
+
+all_documents = []
+
+for pdf_path in Path("documents/").glob("*.pdf"):
+    print(f"Loading {pdf_path.name}...")
+    loader = PyMuPDF4LLMLoader(str(pdf_path))
+    all_documents.extend(loader.load())
+
+print(f"Loaded {len(all_documents)} page(s) in total")
+
+vectorstore = Chroma.from_documents(all_documents, OpenAIEmbeddings())
+```
+
+---
+
+## Using with LCEL
+
+PyMuPDF4LLMLoader works naturally inside LangChain Expression Language (LCEL) chains. Here's a complete retrieval chain using the pipe syntax:
+
+```python
+from langchain_pymupdf4llm import PyMuPDF4LLMLoader
+from langchain_community.vectorstores import Chroma
+from langchain_openai import OpenAIEmbeddings, ChatOpenAI
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.runnables import RunnablePassthrough
+
+# Load and index
+loader = PyMuPDF4LLMLoader("document.pdf")
+vectorstore = Chroma.from_documents(loader.load(), OpenAIEmbeddings())
+retriever = vectorstore.as_retriever(search_kwargs={"k": 4})
+
+# Build LCEL chain
+prompt = ChatPromptTemplate.from_template(
+    "Answer the question using only the context below.\n\n"
+    "Context:\n{context}\n\n"
+    "Question: {question}"
+)
+
+chain = (
+    {"context": retriever, "question": RunnablePassthrough()}
+    | prompt
+    | ChatOpenAI(model="gpt-4o")
+    | StrOutputParser()
+)
+
+print(chain.invoke("What is the document about?"))
+```
+
+---
+
+## Metadata Filtering
+
+Because each document carries source and page metadata, you can scope retrieval to specific pages or files using metadata filters:
+
+```python
+vectorstore = Chroma.from_documents(all_documents, OpenAIEmbeddings())
+
+# Retrieve only from a specific source file
+retriever = vectorstore.as_retriever(
+    search_kwargs={
+        "k": 5,
+        "filter": {"source": "annual-report.pdf"}
+    }
+)
+```
+
+---
+
+## Full Pipeline Example
+
+```python
+from pathlib import Path
+from langchain_pymupdf4llm import PyMuPDF4LLMLoader
+from langchain.text_splitter import MarkdownHeaderTextSplitter
+from langchain_community.vectorstores import Chroma
+from langchain_openai import OpenAIEmbeddings, ChatOpenAI
+from langchain.chains import RetrievalQA
+
+# Load all PDFs
+all_docs = []
+for pdf in Path("reports/").glob("*.pdf"):
+    loader = PyMuPDF4LLMLoader(str(pdf))
+    all_docs.extend(loader.load())
+
+print(f"Loaded {len(all_docs)} page(s)")
+
+# Split on Markdown headings
+splitter = MarkdownHeaderTextSplitter(
+    headers_to_split_on=[("#", "h1"), ("##", "h2"), ("###", "h3")]
+)
+chunks = []
+for doc in all_docs:
+    for split in splitter.split_text(doc.page_content):
+        split.metadata.update(doc.metadata)
+        chunks.append(split)
+
+print(f"Split into {len(chunks)} chunk(s)")
+
+# Embed and index
+vectorstore = Chroma.from_documents(chunks, OpenAIEmbeddings())
+
+# Query
+qa = RetrievalQA.from_chain_type(
+    llm=ChatOpenAI(model="gpt-4o"),
+    retriever=vectorstore.as_retriever(search_kwargs={"k": 5})
+)
+
+print(qa.invoke("Summarise the key findings across all reports.")["result"])
+```
+
+---
+
+## Next Steps
+
+<CardGroup cols={3}>
+  <Card title="LlamaIndex" icon="database" href="/python/integrations/llamaindex">
+    Use PyMuPDF4LLM with LlamaIndex for RAG pipelines.
+  </Card>
+  <Card title="Extract Markdown" icon="markdown" href="/python/guides/extract-markdown">
+    Full walkthrough of to_markdown() options.
+  </Card>
+  <Card title="OCR" icon="eye" href="/python/guides/ocr">
+    Enable OCR for scanned PDFs before indexing.
+  </Card>
+</CardGroup>

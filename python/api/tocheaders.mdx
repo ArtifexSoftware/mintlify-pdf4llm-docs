@@ -1,0 +1,158 @@
+---
+title: TocHeaders
+description: Extract heading structure from a document's table of contents or inferred font hierarchy.
+---
+
+## Class Signature
+
+```python
+class pymupdf4llm.TocHeaders(
+    doc: str | pymupdf.Document,
+    pages: list[int] | None = None,
+    body_limit: float = 14.0,
+)
+```
+
+---
+
+## Overview
+
+`TocHeaders` extracts the heading hierarchy of a document — either from its embedded table of contents (TOC) if one is present, or by inferring heading levels from font sizes across the document. The result is a list of heading entries with their text, level, page, and bounding box.
+
+This is useful for building a document outline, generating navigation, pre-labelling heading spans before extraction, or filtering which sections of a document to process.
+
+```python
+from pymupdf4llm import TocHeaders
+
+toc = TocHeaders("document.pdf")
+for heading in toc.headers:
+    print(f"{'#' * heading['level']} {heading['text']}  (p{heading['page']})")
+```
+
+---
+
+## Parameters
+
+<ParamField path="doc" type="str | pymupdf.Document" required>
+  Path to the document file, or an already-opened `pymupdf.Document` instance.
+</ParamField>
+
+<ParamField path="pages" type="list[int]" default="None">
+  Zero-based list of page indices to analyse. If `None`, all pages are scanned.
+</ParamField>
+
+<ParamField path="body_limit" type="float" default="14.0">
+  Font size threshold in points below which text is treated as body text. Spans above this threshold are candidates for heading classification. Increase for documents with large body text.
+</ParamField>
+
+---
+
+## Attributes
+
+<ResponseField name="headers" type="list[dict]">
+  An ordered list of detected heading entries. Each entry contains:
+
+  | Key | Type | Description |
+  |-----|------|-------------|
+  | `level` | `int` | Heading level — `1` for top-level, `2` for sub-headings, etc. |
+  | `text` | `str` | Heading text |
+  | `page` | `int` | Zero-based page index where the heading appears |
+  | `bbox` | `list[float]` | Bounding box `[x0, y0, x1, y1]` of the heading in PDF points |
+  | `font_size` | `float` | Font size of the heading span in points |
+  | `source` | `str` | `"toc"` if extracted from an embedded TOC, `"inferred"` if derived from font hierarchy |
+</ResponseField>
+
+<ResponseField name="has_toc" type="bool">
+  `True` if the document contains an embedded table of contents that was used as the heading source. `False` if headings were inferred from font sizes.
+</ResponseField>
+
+---
+
+## Examples
+
+### Print document outline
+
+```python
+from pymupdf4llm import TocHeaders
+
+toc = TocHeaders("document.pdf")
+print(f"Source: {'embedded TOC' if toc.has_toc else 'inferred'}\n")
+
+for h in toc.headers:
+    indent = "  " * (h["level"] - 1)
+    print(f"{indent}{'#' * h['level']} {h['text']}  (page {h['page'] + 1})")
+```
+
+### Extract top-level headings only
+
+```python
+h1_headings = [h for h in toc.headers if h["level"] == 1]
+for h in h1_headings:
+    print(h["text"])
+```
+
+### Map headings to page ranges
+
+```python
+import pymupdf
+from pymupdf4llm import TocHeaders
+
+doc = pymupdf.open("document.pdf")
+toc = TocHeaders(doc)
+headers = toc.headers
+
+# Build page ranges between consecutive headings
+for i, heading in enumerate(headers):
+    start_page = heading["page"]
+    end_page = headers[i + 1]["page"] - 1 if i + 1 < len(headers) else doc.page_count - 1
+    print(f"{heading['text']}: pages {start_page + 1}–{end_page + 1}")
+```
+
+### Extract sections by heading
+
+```python
+import pymupdf4llm
+from pymupdf4llm import TocHeaders
+
+doc_path = "document.pdf"
+toc = TocHeaders(doc_path)
+
+for i, heading in enumerate(toc.headers):
+    if heading["level"] != 1:
+        continue
+    start = heading["page"]
+    end = next(
+        (h["page"] for h in toc.headers[i+1:] if h["level"] == 1),
+        None
+    )
+    pages = list(range(start, end)) if end else [start]
+    md = pymupdf4llm.to_markdown(doc_path, pages=pages)
+    print(f"--- {heading['text']} ---")
+    print(md[:500])
+```
+
+### Tune body_limit for large-text documents
+
+```python
+toc = TocHeaders("document.pdf", body_limit=18.0)
+print(toc.headers[:5])
+```
+
+---
+
+## See Also
+
+<CardGroup cols={2}>
+  <Card title="IdentifyHeaders" icon="rectangle" href="/api/IdentifyHeaders">
+    Detect repeating page headers and footers for exclusion.
+  </Card>
+  <Card title="Headers & Footers" icon="file" href="/concepts/headers-footers">
+    Conceptual overview of header and footer handling.
+  </Card>
+  <Card title="Page Selection" icon="file-magnifying-glass" href="/guides/page-selection">
+    Extract specific pages identified by heading structure.
+  </Card>
+  <Card title="to_markdown()" icon="markdown" href="/api/to_markdown">
+    Full to_markdown() API reference.
+  </Card>
+</CardGroup>

@@ -1,0 +1,57 @@
+---
+title: version
+description: Retrieve version information for PyMuPDF4LLM .
+---
+
+## Signature
+
+```python
+pymupdf4llm.version -> string
+```
+
+---
+
+## Overview
+
+`version` returns the version string for PyMuPDF4LLM. This is useful for debugging, bug reports, and confirming which version of the library is installed.
+
+```python
+import pymupdf4llm
+
+version = pymupdf4llm.version
+print(version)
+```
+
+---
+
+## Returns
+
+<ResponseField name="str" type="str">
+  The version string for PyMuPDF4LLM.
+</ResponseField>
+
+---
+
+## Example Output
+
+```python
+"1.27.2.1"
+```
+---
+
+## See Also
+
+<CardGroup cols={2}>
+  <Card title="Installation" icon="circle-down" href="/getting-started/installation">
+    Install PyMuPDF4LLM and optional dependencies.
+  </Card>
+  <Card title="Changelog" icon="clock-rotate-left" href="/reference/changelog">
+    Version history and release notes.
+  </Card>
+  <Card title="OCR Guide" icon="eye" href="/guides/ocr">
+    Using and configuring OCR support.
+  </Card>
+  <Card title="PyMuPDF Pro" icon="lock" href="/integrations/pymupdf-pro">
+    Unlock Office document support.
+  </Card>
+</CardGroup>

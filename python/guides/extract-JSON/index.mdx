@@ -1,6 +1,6 @@
 ---
 title: Extract JSON
-description: Use to_json() to get bounding boxes, layout data, and structured page content for custom pipelines.
+description: Use [to_json()](../api/to_json) to get bounding boxes, layout data, and structured page content for custom pipelines.
 ---
 
 ## Overview
@@ -345,16 +345,16 @@ for page_num, page in enumerate(data.get("pages", [])):
 ## Next Steps
 
 <CardGroup cols={2}>
-  <Card title="JSON Schema" icon="file-code" href="/reference/json-schema">
+  <Card title="JSON Schema" icon="file-code" href="/python/reference/json-schema">
     Full field descriptions for every object in the JSON output.
   </Card>
-  <Card title="Extract Markdown" icon="markdown" href="/guides/extract-markdown">
-    Use to_markdown() when you need clean readable output instead.
+  <Card title="Extract Markdown" icon="markdown" href="/python/guides/extract-markdown">
+    Preserve structure and formatting for LLM pipelines.
   </Card>
-  <Card title="Tables" icon="table" href="/guides/tables">
-    Table block structure and Markdown rendering.
+  <Card title="Extract Text" icon="text" href="/python/guides/extract-text">
+    Get clean, plain text output.
   </Card>
-  <Card title="Word-Level Extraction" icon="text-size" href="/guides/word-level-extraction">
-    Extract individual words with coordinate data.
+  <Card title="Tables" icon="table" href="/python/guides/tables">
+    Table block structure explained.
   </Card>
 </CardGroup>

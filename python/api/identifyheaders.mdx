@@ -1,0 +1,152 @@
+---
+title: IdentifyHeaders
+description: Detect and classify page headers and footers across a document for exclusion or analysis.
+---
+
+## Class Signature
+
+```python
+class pymupdf4llm.IdentifyHeaders(
+    doc: str | pymupdf.Document,
+    pages: list[int] | None = None,
+    body_limit: float = 14.0,
+)
+```
+
+---
+
+## Overview
+
+`IdentifyHeaders` analyses a document to detect repeating content at the top and bottom of pages — page numbers, document titles, section labels, and other elements that appear consistently across multiple pages. The detected regions can then be excluded from extraction to keep output clean.
+
+It is used internally by `to_markdown()` and `to_json()` when header/footer exclusion is enabled, and can also be used directly for inspection or to build custom exclusion logic.
+
+```python
+from pymupdf4llm import IdentifyHeaders
+
+ih = IdentifyHeaders("document.pdf")
+print(ih.header_bbox)
+print(ih.footer_bbox)
+```
+
+---
+
+## Parameters
+
+<ParamField path="doc" type="str | pymupdf.Document" required>
+  Path to the document file, or an already-opened `pymupdf.Document` instance.
+</ParamField>
+
+<ParamField path="pages" type="list[int]" default="None">
+  Zero-based list of page indices to analyse. If `None`, all pages are used. Providing a representative sample of pages (e.g. the first 10) is usually sufficient.
+</ParamField>
+
+<ParamField path="body_limit" type="float" default="14.0">
+  Font size threshold in points below which text is considered body text. Spans with a size above this threshold are candidates for header classification. Increase this value for documents with large body text.
+</ParamField>
+
+---
+
+## Attributes
+
+<ResponseField name="header_bbox" type="tuple[float, float, float, float] | None">
+  Bounding box `(x0, y0, x1, y1)` of the detected header region in PDF points, or `None` if no repeating header was found.
+</ResponseField>
+
+<ResponseField name="footer_bbox" type="tuple[float, float, float, float] | None">
+  Bounding box `(x0, y0, x1, y1)` of the detected footer region in PDF points, or `None` if no repeating footer was found.
+</ResponseField>
+
+<ResponseField name="header_text" type="list[str]">
+  List of unique text strings found in the detected header region across the sampled pages.
+</ResponseField>
+
+<ResponseField name="footer_text" type="list[str]">
+  List of unique text strings found in the detected footer region across the sampled pages.
+</ResponseField>
+
+---
+
+## Methods
+
+### `get_margins()`
+
+```python
+ih.get_margins() -> tuple[float, float, float, float]
+```
+
+Returns a `margins` tuple `(left, top, right, bottom)` suitable for passing directly to `to_markdown()` or `to_json()` to crop out the detected header and footer regions.
+
+```python
+from pymupdf4llm import IdentifyHeaders
+import pymupdf4llm
+
+ih = IdentifyHeaders("document.pdf")
+margins = ih.get_margins()
+
+md = pymupdf4llm.to_markdown("document.pdf", margins=margins)
+```
+
+---
+
+## Examples
+
+### Inspect detected regions
+
+```python
+from pymupdf4llm import IdentifyHeaders
+
+ih = IdentifyHeaders("document.pdf")
+
+print("Header bbox:", ih.header_bbox)
+print("Footer bbox:", ih.footer_bbox)
+print("Header text:", ih.header_text)
+print("Footer text:", ih.footer_text)
+```
+
+### Use margins to exclude headers and footers
+
+```python
+from pymupdf4llm import IdentifyHeaders
+import pymupdf4llm
+
+ih = IdentifyHeaders("document.pdf")
+margins = ih.get_margins()
+
+md = pymupdf4llm.to_markdown("document.pdf", margins=margins)
+```
+
+### Tune body_limit for documents with large text
+
+```python
+# Increase body_limit for a document with 16pt body text
+ih = IdentifyHeaders("document.pdf", body_limit=18.0)
+print(ih.header_text)
+```
+
+### Sample a subset of pages for faster analysis
+
+```python
+# Use first 10 pages as a representative sample
+ih = IdentifyHeaders("document.pdf", pages=list(range(10)))
+margins = ih.get_margins()
+```
+
+---
+
+## See Also
+
+<CardGroup cols={2}>
+  <Card title="Headers & Footers" icon="rectangle" href="/concepts/headers-footers">
+    How header and footer detection works conceptually.
+  </Card>
+  <Card title="TocHeaders" icon="list" href="/api/TocHeaders">
+    Detect table-of-contents style heading structure.
+  </Card>
+  <Card title="to_markdown()" icon="markdown" href="/api/to_markdown">
+    Pass margins from IdentifyHeaders to to_markdown().
+  </Card>
+  <Card title="Extract Markdown" icon="file" href="/guides/extract-markdown">
+    Practical guide to using margins in extraction.
+  </Card>
+</CardGroup>

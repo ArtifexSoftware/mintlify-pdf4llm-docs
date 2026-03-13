@@ -1,0 +1,170 @@
+---
+title: LlamaMarkdownReader
+description: A LlamaIndex BaseReader implementation that loads documents as Markdown-formatted Document objects.
+---
+
+## Class Signature
+
+```python
+class pymupdf4llm.LlamaMarkdownReader(
+    *args,
+    **kwargs
+)
+```
+
+Inherits from `llama_index.core.readers.base.BaseReader`.
+
+---
+
+## Overview
+
+`LlamaMarkdownReader` is a LlamaIndex-compatible document loader that wraps `to_markdown()` and returns a list of LlamaIndex `Document` objects — one per page. It is the recommended way to integrate PyMuPDF4LLM into LlamaIndex pipelines.
+
+
+```python
+from pymupdf4llm import LlamaMarkdownReader
+
+pymupdf4llm.use_layout(False)
+reader = LlamaMarkdownReader()
+documents = reader.load_data("document.pdf")
+```
+
+<Tip>
+Note: it is required to set `use_layout=False` globally when using `LlamaMarkdownReader`.
+</Tip>
+
+---
+
+## Methods
+
+### `load_data()`
+
+```python
+reader.load_data(
+    file: str | Path,
+    pages: list[int] | None = None,
+    extra_info: dict | None = None,
+) -> list[Document]
+```
+
+Loads a document and returns a list of LlamaIndex `Document` objects.
+
+<ParamField path="file" type="str | Path" required>
+  Path to the document file. Supports all formats accepted by `to_markdown()`.
+</ParamField>
+
+<ParamField path="pages" type="list[int]" default="None">
+  Zero-based list of page indices to load. If `None`, all pages are loaded.
+</ParamField>
+
+<ParamField path="extra_info" type="dict | None" default="None">
+  Additional key-value pairs to merge into the `metadata` dictionary of every returned `Document`.
+</ParamField>
+
+#### Returns
+
+A list of `llama_index.core.schema.Document` objects, one per page. Each document has:
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `text` | `str` | Markdown content of the page |
+| `metadata` | `dict` | Page and document metadata |
+
+Example metadata:
+
+```json
+{
+  "page": 0,
+  "page_count": 24,
+  "file_path": "document.pdf",
+  "title": "Annual Report 2025",
+  "author": "Acme Corp",
+  "creation_date": "2025-01-15"
+}
+```
+
+---
+
+## Examples
+
+### Basic usage
+
+```python
+from pymupdf4llm import LlamaMarkdownReader
+
+pymupdf4llm.use_layout(False)
+reader = LlamaMarkdownReader()
+documents = reader.load_data("report.pdf")
+
+print(f"Loaded {len(documents)} page(s)")
+print(documents[0].text[:300])
+print(documents[0].metadata)
+```
+
+### Specific pages
+
+```python
+documents = reader.load_data("report.pdf", pages=[0, 1, 2])
+```
+
+### Extra metadata
+
+```python
+documents = reader.load_data(
+    "report.pdf",
+    extra_info={"department": "finance", "year": 2025}
+)
+print(documents[0].metadata["department"])  # "finance"
+```
+
+### Build a VectorStoreIndex
+
+```python
+from pymupdf4llm import LlamaMarkdownReader
+from llama_index.core import VectorStoreIndex
+
+pymupdf4llm.use_layout(False)
+reader = LlamaMarkdownReader()
+documents = reader.load_data("document.pdf")
+index = VectorStoreIndex.from_documents(documents)
+engine = index.as_query_engine()
+print(engine.query("What is the main topic?"))
+```
+
+### Use with IngestionPipeline
+
+```python
+from pymupdf4llm import LlamaMarkdownReader
+from llama_index.core.ingestion import IngestionPipeline
+from llama_index.core.node_parser import MarkdownNodeParser
+from llama_index.core import VectorStoreIndex
+
+pymupdf4llm.use_layout(False)
+reader = LlamaMarkdownReader()
+documents = reader.load_data("document.pdf")
+
+pipeline = IngestionPipeline(
+    transformations=[MarkdownNodeParser()]
+)
+nodes = pipeline.run(documents=documents)
+index = VectorStoreIndex(nodes)
+```
+
+---
+
+## See Also
+
+<CardGroup cols={2}>
+  <Card title="LlamaIndex Integration" icon="database" href="/integrations/llamaindex">
+    Full integration guide with RAG pipeline examples.
+  </Card>
+  <Card title="to_markdown()" icon="markdown" href="/api/to_markdown">
+    Underlying extraction function used by this reader.
+  </Card>
+  <Card title="Page Chunking" icon="layer-group" href="/concepts/page-chunking">
+    Chunk metadata schema.
+  </Card>
+  <Card title="LangChain" icon="link" href="/integrations/langchain">
+    LangChain loader for PyMuPDF4LLM.
+  </Card>
+</CardGroup>

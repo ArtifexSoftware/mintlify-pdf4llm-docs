@@ -95,15 +95,6 @@ print(response)
 
 ---
 
-## Page Selection
-
-To load only specific pages, pass a `pages` list to `load_data()`:
-
-```python
-documents = reader.load_data("document.pdf", pages=[0, 1, 2])
-```
-
----
 
 ## Loading Multiple Documents
 
@@ -250,7 +241,7 @@ print(engine.query("What are the main conclusions?"))
 
 ## API Reference
 
-<Card title="LlamaMarkdownReader" icon="code" href="/api/LlamaMarkdownReader">
+<Card title="LlamaMarkdownReader" icon="code" href="/python/api#LlamaMarkdownReader">
   Full API reference for the LlamaMarkdownReader class.
 </Card>
 
@@ -258,17 +249,14 @@ print(engine.query("What are the main conclusions?"))
 
 ## Next Steps
 
-<CardGroup cols={2}>
-  <Card title="LangChain" icon="link" href="/integrations/langchain">
+<CardGroup cols={3}>
+  <Card title="LangChain" icon="link" href="/python/integrations/langchain">
     Use PyMuPDF4LLM as a LangChain document loader.
   </Card>
-  <Card title="Page Chunking" icon="layer-group" href="/concepts/page-chunking">
-    Understand the chunk schema used for LLM ingestion.
+  <Card title="Extract Markdown" icon="markdown" href="/python/guides/extract-markdown">
+    Full walkthrough of `to_markdown()` options.
   </Card>
-  <Card title="Extract Markdown" icon="markdown" href="/guides/extract-markdown">
-    Full walkthrough of to_markdown() options.
-  </Card>
-  <Card title="OCR" icon="eye" href="/guides/ocr">
+  <Card title="OCR" icon="eye" href="/python/guides/OCR">
     Enable OCR for scanned PDFs before indexing.
   </Card>
 </CardGroup>

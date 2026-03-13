@@ -1,0 +1,259 @@
+---
+title: PyMuPDF Pro
+description: Unlock Office document support in PyMuPDF4LLM — extract content from `.doc`, `.ppt`, `.xls`, and more.
+---
+
+## Overview
+
+PyMuPDF Pro extends PyMuPDF4LLM with support for Microsoft Office formats. Without Pro, PyMuPDF4LLM is limited to PDF, XPS, and eBook inputs. With Pro activated, you can pass Office files directly to any extraction function — no conversion step required.
+
+Everything else stays the same. All standard options — page selection, layout analysis, OCR, page chunks, image extraction — work identically on Office documents.
+
+
+
+<Card
+  title="Contact Sales"
+  icon="rocket"
+  href="https://artifex.com/contact/pymupdf-pro"
+  horizontal
+>
+  Need a Commercial Licence for **PyMuPDF Pro**? Contact the sales team to discuss options and pricing.
+</Card>
+
+---
+
+## Supported Office Formats
+
+| Format | Extensions | Notes |
+|--------|------------|-------|
+| Word | `.docx`, `.doc` | Full text, tables, images, and headers |
+| PowerPoint | `.pptx`, `.ppt` | Slide content, speaker notes, embedded images |
+| Excel | `.xlsx`, `.xls` | Sheet data rendered as tables |
+| Hangul | `.hwpx`, `.hwp` | Hangul Word Processor format |
+
+<Note>
+  Office documents are converted to PDF internally by PyMuPDF Pro before extraction. This means all PyMuPDF4LLM features work on Office files exactly as they do on PDFs.
+</Note>
+
+---
+
+## Installation
+
+Install PyMuPDF Pro:
+
+```bash
+pip install pymupdfpro
+```
+
+<Note>
+  PyMuPDF Pro requires a valid licence key. [Request a trial or purchase a licence](https://pymupdf.readthedocs.io/en/latest/pymupdf-pro/) from the PyMuPDF website.
+</Note>
+
+---
+
+## Usage
+
+### Trial Keys
+
+<Warning>
+  Without a valid licence key, PyMuPDF Pro functionality is restricted to only the first 3 pages of any document. This applies to all supported formats, including PDFs. To unlock full functionality you should [obtain a trial key](https://pymupdf.pro/try-pro/).
+</Warning>
+
+To obtain a trial license key [please fill out the form on this page](https://pymupdf.pro/try-pro/). You will then have the trial key emailed to the address you submitted.
+
+<Note>
+    Trial keys are valid for 60 days and allow you to test the full functionality of PyMuPDF Pro on any document. This is ideal for evaluation and development purposes.
+</Note>
+
+### Activating Your Licence
+
+Activate the licence explicitly at the start of your script:
+
+```python
+import pymupdf.pro
+
+pymupdf.pro.unlock("your-licence-key-here")
+```
+
+Call `unlock()` once before making any extraction calls. A good place to do this is at application startup or in your environment initialisation.
+
+<Warning>
+  Never hardcode your licence key directly in source code that will be committed to version control. Use environment variables or a secrets manager instead.
+</Warning>
+
+
+### Commercial License Keys
+
+Commercial licence keys are also supported. If you have a commercial key, simply pass it to `unlock()` instead of the trial key. Commercial keys do not have the time limit restriction and may also include additional features or support options. [Contact the PyMuPDF sales team](https://artifex.com/contact/pymupdf-pro) for more information on commercial licences.
+
+<Card
+  title="Contact Sales"
+  icon="rocket"
+  href="https://artifex.com/contact/pymupdf-pro"
+  horizontal
+>
+  Need a Commercial Licence for **PyMuPDF Pro**? Contact the sales team to discuss options and pricing.
+</Card>
+---
+
+## Extracting Office Documents
+
+Once Pro is activated, pass Office files to any extraction function exactly as you would a PDF:
+
+### Word Documents
+
+```python
+import pymupdf.pro
+import pymupdf4llm
+
+pymupdf.pro.unlock()
+md_text = pymupdf4llm.to_markdown("contract.docx")
+print(md_text)
+```
+
+### PowerPoint Presentations
+
+```python
+# Each slide is treated as a page
+chunks = pymupdf4llm.to_markdown("presentation.pptx", page_chunks=True)
+
+for chunk in chunks:
+    print(f"Slide {chunk['metadata']['page'] + 1}")
+    print(chunk["text"])
+    print("---")
+```
+
+### Excel Spreadsheets
+
+```python
+# Each sheet is treated as a page; tables are rendered as Markdown tables
+md_text = pymupdf4llm.to_markdown("data.xlsx")
+print(md_text)
+```
+
+### Hangul Documents
+
+```python
+md_text = pymupdf4llm.to_markdown("korean.hwpx")
+print(md_text)
+```
+
+
+---
+
+
+## Converting an Office document to PDF
+
+The following code snippet can convert your Office document to PDF format:
+
+```python
+import pymupdf.pro
+pymupdf.pro.unlock()
+
+doc = pymupdf.open("my-office-doc.xlsx")
+
+pdfdata = doc.convert_to_pdf()
+with open('output.pdf', 'wb') as f:
+    f.write(pdfdata)
+```
+
+---
+
+
+
+## Using All Standard Options
+
+Because Office documents are converted to PDF internally, every standard PyMuPDF4LLM option works without modification:
+
+```python
+import pymupdf.pro
+import pymupdf4llm
+from pathlib import Path
+
+pymupdf.pro.unlock()
+
+# Layout analysis, image extraction, and page chunks on a Word doc
+chunks = pymupdf4llm.to_markdown(
+    "annual-report.docx",
+    page_chunks=True,
+    use_layout=True,
+    write_images=True,
+    image_path="output/images/",
+    image_format="png",
+    dpi=150
+)
+
+Path("output/images").mkdir(parents=True, exist_ok=True)
+
+for chunk in chunks:
+    page = chunk["metadata"]["page"]
+    Path(f"output/page-{page}.md").write_text(chunk["text"], encoding="utf-8")
+```
+
+---
+
+## Processing a Mixed Document Library
+
+With Pro activated you can process a folder containing a mix of PDFs and Office files using the same code path:
+
+```python
+import pymupdf.pro
+import pymupdf4llm
+from pathlib import Path
+
+pymupdf.pro.unlock()
+
+SUPPORTED = {".pdf", ".docx", ".doc", ".pptx", ".ppt", ".xlsx", ".xls", ".hwpx", ".hwp"}
+
+input_dir = Path("documents/")
+output_dir = Path("extracted/")
+output_dir.mkdir(parents=True, exist_ok=True)
+
+for file_path in input_dir.iterdir():
+    if file_path.suffix.lower() not in SUPPORTED:
+        continue
+
+    print(f"Processing {file_path.name}...")
+    try:
+        md_text = pymupdf4llm.to_markdown(str(file_path))
+        out = output_dir / file_path.with_suffix(".md").name
+        out.write_text(md_text, encoding="utf-8")
+        print(f"  ✓ Saved to {out}")
+    except Exception as e:
+        print(f"  ✗ Failed: {e}")
+```
+
+---
+
+## PyMuPDF Pro and Fonts
+
+By default `pymupdf.pro.unlock()` searches for all installed font directories.
+
+This can be controlled with keyword-only args:
+
+- `fontpath`: specific font directories, either as a list/tuple or `os.sep`-separated string.
+  - `None` (the default)
+  - If not `None` we use the value set in `os.environ['PYMUPDFPRO_FONT_PATH']`.
+- `fontpath_auto`: Whether to append system font directories.
+  - `None` (the default) 
+  - We use `True` if `os.environ['PYMUPDFPRO_FONT_PATH_AUTO']` is `1`, then all system font directories are appended.
+
+Function `pymupdf.pro.get_fontpath()` returns a tuple of all font directories used by `unlock()`.
+
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="LlamaIndex" icon="database" href="/integrations/llamaindex">
+    Index Office documents with LlamaIndex.
+  </Card>
+  <Card title="LangChain" icon="link" href="/integrations/langchain">
+    Load Office documents into LangChain pipelines.
+  </Card>
+  <Card title="Supported Formats" icon="file" href="/getting-started/supported-formats">
+    Full list of supported input and output formats.
+  </Card>
+  <Card title="Extract Markdown" icon="markdown" href="/guides/extract-markdown">
+    All to_markdown() options that work with Office files.
+  </Card>
+</CardGroup>
