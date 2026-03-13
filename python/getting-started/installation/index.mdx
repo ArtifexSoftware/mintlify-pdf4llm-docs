@@ -23,17 +23,11 @@ This gives you full access to Markdown, JSON, and plain text extraction from doc
 
 ## Optional Dependencies
 
-
-
 ### OCR Support
 
 Enables automatic Optical Character Recognition for scanned or image-based PDFs. Requires [Tesseract](https://github.com/tesseract-ocr/tesseract) to be installed on your system alongside the Python bindings.
 
-```bash
-pip install pymupdf4llm[ocr]
-```
-
-Then install Tesseract and OpenCV at the system level:
+To install Tesseract and OpenCV at the system level:
 
 <Tabs>
   <Tab title="macOS">
@@ -60,13 +54,6 @@ Then install Tesseract and OpenCV at the system level:
   OCR is only triggered automatically when PyMuPDF4LLM detects that a page contains no selectable text. See [OCR](/concepts/ocr) for details on when and how to control this behaviour.
 </Warning>
 
-### All Optional Dependencies
-
-Install everything at once:
-
-```bash
-pip install pymupdf4llm[layout,ocr]
-```
 
 ---
 
@@ -75,7 +62,7 @@ pip install pymupdf4llm[layout,ocr]
 ```python
 import pymupdf4llm
 
-print(pymupdf4llm.__version__)
+print(pymupdf4llm.version)
 ```
 
 ---
@@ -84,9 +71,9 @@ print(pymupdf4llm.__version__)
 
 <CardGroup cols={2}>
   <Card title="Quickstart" icon="bolt" href="/python/getting-started/quickstart">
-    Convert your first PDF to Markdown in five lines.
+    Convert your first PDF to Markdown in a few lines.
   </Card>
-  <Card title="Supported Formats" icon="file" href="/getting-started/supported-formats">
+  <Card title="Supported Formats" icon="file" href="/python/getting-started/supported-formats">
     See all supported input and output formats.
   </Card>
 </CardGroup>

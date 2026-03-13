@@ -1,0 +1,274 @@
+---
+title: LlamaIndex
+description: Use PyMuPDF4LLM with LlamaIndex to load and index PDF content for RAG pipelines and LLM-powered applications.
+---
+
+## Overview
+
+PyMuPDF4LLM ships with a native LlamaIndex reader — `LlamaMarkdownReader` — that converts PDF documents into LlamaIndex `Document` objects. This lets you drop PyMuPDF4LLM directly into any LlamaIndex pipeline as a data loader, with no glue code required.
+
+```python
+from pymupdf4llm import LlamaMarkdownReader
+
+reader = LlamaMarkdownReader()
+documents = reader.load_data("document.pdf")
+```
+
+---
+
+## Installation
+
+Make sure both PyMuPDF4LLM and LlamaIndex are installed:
+
+```bash
+pip install pymupdf4llm llama-index
+```
+
+---
+
+## Basic Usage
+
+`LlamaMarkdownReader` follows the LlamaIndex `BaseReader` interface. Call `load_data()` with the path to your PDF and it returns a list of `Document` objects — one per page by default.
+
+```python
+from pymupdf4llm import LlamaMarkdownReader
+
+reader = LlamaMarkdownReader()
+documents = reader.load_data("document.pdf")
+
+print(f"Loaded {len(documents)} document(s)")
+for doc in documents:
+    print(doc.text[:200])
+```
+
+---
+
+## Document Structure
+
+Each `Document` returned by `load_data()` contains:
+
+- **`text`** — the Markdown content of the page
+- **`metadata`** — a dictionary of page-level metadata from PyMuPDF4LLM
+
+```python
+doc = documents[0]
+
+print(doc.text)        # Markdown string
+print(doc.metadata)    # Page metadata dict
+```
+
+Example metadata:
+
+```json
+{
+  "page": 0,
+  "page_count": 24,
+  "file_path": "document.pdf",
+  "title": "Annual Report 2025",
+  "author": "Acme Corp",
+  "creation_date": "2025-01-15"
+}
+```
+
+---
+
+## Building a RAG Pipeline
+
+Combine `LlamaMarkdownReader` with LlamaIndex's `VectorStoreIndex` to build a retrieval-augmented generation pipeline in just a few lines:
+
+```python
+from pymupdf4llm import LlamaMarkdownReader
+from llama_index.core import VectorStoreIndex
+
+# Load documents
+reader = LlamaMarkdownReader()
+documents = reader.load_data("report.pdf")
+
+# Build the index
+index = VectorStoreIndex.from_documents(documents)
+
+# Query
+query_engine = index.as_query_engine()
+response = query_engine.query("What were the key findings in Q3?")
+print(response)
+```
+
+---
+
+## Page Selection
+
+To load only specific pages, pass a `pages` list to `load_data()`:
+
+```python
+documents = reader.load_data("document.pdf", pages=[0, 1, 2])
+```
+
+---
+
+## Loading Multiple Documents
+
+Process an entire folder of PDFs and build a unified index across all of them:
+
+```python
+from pathlib import Path
+from pymupdf4llm import LlamaMarkdownReader
+from llama_index.core import VectorStoreIndex
+
+reader = LlamaMarkdownReader()
+all_documents = []
+
+for pdf_path in Path("reports/").glob("*.pdf"):
+    print(f"Loading {pdf_path.name}...")
+    docs = reader.load_data(str(pdf_path))
+    all_documents.extend(docs)
+
+print(f"Loaded {len(all_documents)} page(s) across all documents")
+
+index = VectorStoreIndex.from_documents(all_documents)
+query_engine = index.as_query_engine()
+```
+
+---
+
+## Using with a Persistent Vector Store
+
+For production pipelines, persist the index to disk so you don't have to re-embed on every run:
+
+```python
+from pymupdf4llm import LlamaMarkdownReader
+from llama_index.core import VectorStoreIndex, StorageContext, load_index_from_storage
+from pathlib import Path
+
+INDEX_DIR = "storage/index"
+
+if Path(INDEX_DIR).exists():
+    # Load existing index
+    storage_context = StorageContext.from_defaults(persist_dir=INDEX_DIR)
+    index = load_index_from_storage(storage_context)
+    print("Loaded index from disk")
+else:
+    # Build and persist index
+    reader = LlamaMarkdownReader()
+    documents = reader.load_data("document.pdf")
+    index = VectorStoreIndex.from_documents(documents)
+    index.storage_context.persist(persist_dir=INDEX_DIR)
+    print("Built and saved index to disk")
+
+query_engine = index.as_query_engine()
+response = query_engine.query("Summarise the executive summary.")
+print(response)
+```
+
+---
+
+## Using with LlamaIndex Ingestion Pipeline
+
+For more control over chunking, metadata enrichment, and embedding, use `LlamaMarkdownReader` inside a LlamaIndex `IngestionPipeline`:
+
+```python
+from pymupdf4llm import LlamaMarkdownReader
+from llama_index.core import VectorStoreIndex
+from llama_index.core.ingestion import IngestionPipeline
+from llama_index.core.node_parser import MarkdownNodeParser
+from llama_index.core.extractors import TitleExtractor
+
+reader = LlamaMarkdownReader()
+documents = reader.load_data("document.pdf")
+
+pipeline = IngestionPipeline(
+    transformations=[
+        MarkdownNodeParser(),     # split on Markdown headings
+        TitleExtractor(),         # extract page titles as metadata
+    ]
+)
+
+nodes = pipeline.run(documents=documents)
+print(f"Created {len(nodes)} node(s)")
+
+index = VectorStoreIndex(nodes)
+query_engine = index.as_query_engine()
+```
+
+<Tip>
+  `MarkdownNodeParser` is particularly effective with PyMuPDF4LLM output because headings and structure are preserved in the Markdown text — nodes split on semantic boundaries rather than arbitrary character counts.
+</Tip>
+
+---
+
+## Metadata Filtering
+
+Because each `Document` carries page-level metadata, you can filter retrieval results by metadata fields such as page number or source file:
+
+```python
+from llama_index.core.vector_stores import MetadataFilter, MetadataFilters
+
+filters = MetadataFilters(
+    filters=[MetadataFilter(key="page", value=3)]
+)
+
+query_engine = index.as_query_engine(filters=filters)
+response = query_engine.query("What is discussed on page 3?")
+print(response)
+```
+
+---
+
+## Full Pipeline Example
+
+```python
+from pathlib import Path
+from pymupdf4llm import LlamaMarkdownReader
+from llama_index.core import VectorStoreIndex
+from llama_index.core.ingestion import IngestionPipeline
+from llama_index.core.node_parser import MarkdownNodeParser
+
+# Load
+reader = LlamaMarkdownReader()
+documents = []
+for pdf in Path("docs/").glob("*.pdf"):
+    documents.extend(reader.load_data(str(pdf)))
+
+print(f"Loaded {len(documents)} page(s)")
+
+# Transform
+pipeline = IngestionPipeline(
+    transformations=[MarkdownNodeParser()]
+)
+nodes = pipeline.run(documents=documents)
+print(f"Created {len(nodes)} node(s)")
+
+# Index
+index = VectorStoreIndex(nodes)
+index.storage_context.persist(persist_dir="storage/")
+
+# Query
+engine = index.as_query_engine()
+print(engine.query("What are the main conclusions?"))
+```
+
+---
+
+## API Reference
+
+<Card title="LlamaMarkdownReader" icon="code" href="/api/LlamaMarkdownReader">
+  Full API reference for the LlamaMarkdownReader class.
+</Card>
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="LangChain" icon="link" href="/integrations/langchain">
+    Use PyMuPDF4LLM as a LangChain document loader.
+  </Card>
+  <Card title="Page Chunking" icon="layer-group" href="/concepts/page-chunking">
+    Understand the chunk schema used for LLM ingestion.
+  </Card>
+  <Card title="Extract Markdown" icon="markdown" href="/guides/extract-markdown">
+    Full walkthrough of to_markdown() options.
+  </Card>
+  <Card title="OCR" icon="eye" href="/guides/ocr">
+    Enable OCR for scanned PDFs before indexing.
+  </Card>
+</CardGroup>
