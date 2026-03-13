@@ -8,7 +8,32 @@
     "dark": "#15803D"
   },
   "favicon": "/favicon.svg",
+  
   "navigation": {
+    "global": {
+      "anchors": [
+        {
+          "anchor": "pymupdf.io",
+          "href": "https://pymupdf.io",
+          "icon": "globe"
+        },
+        {
+          "anchor": "GitHub",
+          "href": "https://github.com/pymupdf/pymupdf4llm",
+          "icon": "github"
+        },
+        {
+          "anchor": "PyPI",
+          "href": "https://pypi.org/project/pymupdf4llm/",
+          "icon": "python"
+        },
+        {
+          "anchor": "Discord",
+          "href": "https://discord.gg/TaHAjaEVWS",
+          "icon": "discord"
+        }
+      ]
+    },
     "tabs": [
       {
         "tab": "Python",
@@ -45,10 +70,10 @@
           {
             "group": "Reference",
             "pages": [
-              "python/API/",
+              "python/API",
               "python/reference/chunk-schema",
               "python/reference/JSON-schema",
-              "python/reference/CHANGELOG"
+              "python/reference/Changelog"
             ]
           }
         ]
@@ -80,5 +105,17 @@
         ]
       }
     ]
+    },
+    "footer": {
+        "links": [
+            {
+
+                "items":[
+                    {"label":"© Artifex 2025", "href":"https://artifex.com"}
+
+                ]
+            }
+        ]
+
     }
 }

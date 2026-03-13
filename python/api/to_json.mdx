@@ -8,12 +8,7 @@ description: Extract document content as structured JSON with bounding boxes, la
 ```python
 pymupdf4llm.to_json(
     doc: str | pymupdf.Document,
-    pages: list[int] | None = None,
-    extract_tables: bool = True,
-    margins: tuple[float, float, float, float] = (0, 0, 0, 0),
-    force_ocr: bool = False,
-    ocr: bool = True,
-    ocr_adaptor: OcrAdaptor | None = None,
+    **kwargs
 ) -> list[dict]
 ```
 
@@ -25,47 +20,22 @@ pymupdf4llm.to_json(
   Path to the document file, or an already-opened `pymupdf.Document` instance. Supports PDF, XPS, eBooks, and — with PyMuPDF Pro — Office formats.
 </ParamField>
 
-<ParamField path="pages" type="list[int]" default="None">
-  Zero-based list of page indices to extract. If `None`, all pages are processed. Order is preserved in the output.
+<ParamField path="**kwargs" type="various">
+  Additional parameters are shared with `to_markdown()`. See the [to_markdown() API reference](/python/api/to_markdown) for details.
 </ParamField>
 
-<ParamField path="extract_tables" type="bool" default="true">
-  When `True`, detected tables are returned as structured `"table"` blocks with row and cell data. Set to `False` to treat table content as text blocks.
-</ParamField>
-
-<ParamField path="margins" type="tuple[float, float, float, float]" default="(0, 0, 0, 0)">
-  Page margins in PDF points `(left, top, right, bottom)` applied before extraction. Content outside the crop area is ignored.
-</ParamField>
-
-<ParamField path="force_ocr" type="bool" default="false">
-  When `True`, all pages are sent through OCR regardless of whether they contain selectable text.
-</ParamField>
-
-<ParamField path="ocr" type="bool" default="true">
-  When `True`, pages with no selectable text are automatically sent through OCR. Set to `False` to disable OCR entirely.
-</ParamField>
-
-<ParamField path="ocr_adaptor" type="OcrAdaptor | None" default="None">
-  A custom OCR engine adaptor. If `None`, the default `TesseractAdaptor` is used. See [OCR Adaptors](/guides/ocr#ocr-adaptors).
-</ParamField>
+<Tip>
+For other parameters, see the shared [to_markdown() API reference](/python/api/to_markdown) which applies to all extraction functions.
+</Tip>
 
 ---
 
 ## Returns
 
 <ResponseField name="list[dict]" type="list">
-  A list of page objects, one per extracted page. See [JSON Schema](/reference/json-schema) for the full field reference.
+  A list of page objects, one per extracted page. See [JSON Schema](/python/reference/json-schema) for the full field reference.
 
-  Each page object contains:
-
-  | Key | Type | Description |
-  |-----|------|-------------|
-  | `page` | `int` | Zero-based page index |
-  | `width` | `float` | Page width in PDF points |
-  | `height` | `float` | Page height in PDF points |
-  | `blocks` | `list[dict]` | Ordered list of content blocks |
-
-  Each block has a `type` field — `"text"`, `"image"`, `"table"`, or `"drawing"` — and type-specific fields. See [Extract JSON](/guides/extract-json) for detailed block structure examples.
+  See [Extract JSON](/python/guides/extract-json) for detailed block structure examples.
 </ResponseField>
 
 ---
@@ -77,7 +47,6 @@ pymupdf4llm.to_json(
 | `FileNotFoundError` | `doc` is a path string that does not exist |
 | `ValueError` | An index in `pages` is out of range for the document |
 | `ImportError` | `ocr=True` or `force_ocr=True` but the `ocr` dependency is not installed |
-| `LicenceError` | Document format requires PyMuPDF Pro which is not activated |
 
 ---
 
@@ -91,17 +60,19 @@ import pymupdf4llm
 data = pymupdf4llm.to_json("document.pdf")
 ```
 
-### Iterate over text blocks
+### Iterate over blocks
 
 ```python
-for page in data:
-    for block in page["blocks"]:
-        if block["type"] == "text":
-            for line in block["lines"]:
-                for span in line["spans"]:
-                    print(span["text"], span["size"], span["font"])
+for page_num, page in enumerate(data.get("pages", [])):
+    for block in page.get("boxes", []):
+        for line in block.get("textlines", []):
+            for span in line.get("spans", []):
+                bbox = span.get("bbox", []) # bounding box for this text span
+                text = span.get("text", "") # text content of the span
+                flags = span.get("flags", 0) # font style flags (bitmask)
 ```
 
+{/*
 ### Extract all bounding boxes
 
 ```python
@@ -109,6 +80,7 @@ for page in data:
     for block in page["blocks"]:
         print(f"p{page['page']} {block['type']:8s} bbox={block['bbox']}")
 ```
+
 
 ### Save to file
 
@@ -134,7 +106,7 @@ for page in data:
         img_bytes = base64.b64decode(block["image"])
         Path(f"page-{page['page']}-img-{i}.{block['ext']}").write_bytes(img_bytes)
 ```
-
+*/}
 ---
 
 ## See Also

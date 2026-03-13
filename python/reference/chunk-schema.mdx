@@ -1,0 +1,37 @@
+---
+title: Chunk Schema
+description: Full dictionary schema for each page chunk returned when page_chunks=True.
+---
+ 
+## Overview
+ 
+When `page_chunks=True` is passed to [to_markdown()](../api/to_markdown) or [to_text()](../api/to_text), the return value is a list of dictionaries — one per page — rather than a single concatenated string. Each dictionary follows the schema described on this page.
+ 
+```python
+chunks = pymupdf4llm.to_markdown("document.pdf", page_chunks=True)
+ 
+chunk = chunks[0]
+print(chunk.keys())
+# dict_keys(['metadata', 'toc_items', 'tables', 'images', 'graphics', 'text', 'words', 'page_boxes'])
+```
+ 
+
+
+## TODO: Full schema with descriptions for each key, including examples of the content and metadata fields.
+
+
+
+<CardGroup cols={2}>
+  <Card title="Extract JSON Guide" icon="brackets-curly" href="/python/guides/extract-json">
+    Working walkthrough with filtering, DataFrame export, and pipeline examples.
+  </Card>
+  <Card title="to_json()" icon="code" href="/python/api/to_json">
+    Full API reference for to_json().
+  </Card>
+  <Card title="JSON Schema" icon="layer-group" href="/python/reference/json-schema">
+    The JSON schema reference for the full output of to_json(), including text, image, table, and drawing blocks with bounding boxes and metadata.
+  </Card>
+  <Card title="Tables Guide" icon="table" href="/python/guides/tables">
+    Extracting and working with table blocks.
+  </Card>
+</CardGroup>

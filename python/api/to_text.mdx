@@ -8,14 +8,8 @@ description: Extract document content as a plain text string, stripped of all Ma
 ```python
 pymupdf4llm.to_text(
     doc: str | pymupdf.Document,
-    pages: list[int] | None = None,
-    page_chunks: bool = False,
-    page_separator: str = "\n",
-    margins: tuple[float, float, float, float] = (0, 0, 0, 0),
-    force_ocr: bool = False,
-    ocr: bool = True,
-    ocr_adaptor: OcrAdaptor | None = None,
-) -> str | list[dict]
+    **kwargs
+) -> str  | list[dict]
 ```
 
 ---
@@ -26,40 +20,20 @@ pymupdf4llm.to_text(
   Path to the document file, or an already-opened `pymupdf.Document` instance. Supports PDF, XPS, eBooks, and — with PyMuPDF Pro — Office formats.
 </ParamField>
 
-<ParamField path="pages" type="list[int]" default="None">
-  Zero-based list of page indices to extract. If `None`, all pages are processed. Order is preserved in the output.
+<ParamField path="**kwargs" type="various">
+  Additional parameters are shared with `to_markdown()`. See the [to_markdown() API reference](/python/api/to_markdown) for details.
 </ParamField>
 
-<ParamField path="page_chunks" type="bool" default="false">
-  When `True`, returns a list of per-page dictionaries instead of a single string. Each dictionary contains a `text` key with the page's plain text and a `metadata` key with page-level information.
-</ParamField>
-
-<ParamField path="page_separator" type="str" default='"\n"'>
-  String inserted between the text content of consecutive pages. Common values are `"\n\n"`, `"\n\n---\n\n"`, or `"\f"` (form feed).
-</ParamField>
-
-<ParamField path="margins" type="tuple[float, float, float, float]" default="(0, 0, 0, 0)">
-  Page margins in PDF points `(left, top, right, bottom)` applied before extraction. Content outside the crop area is ignored.
-</ParamField>
-
-<ParamField path="force_ocr" type="bool" default="false">
-  When `True`, all pages are sent through OCR regardless of whether they contain selectable text.
-</ParamField>
-
-<ParamField path="ocr" type="bool" default="true">
-  When `True`, pages with no selectable text are automatically sent through OCR. Set to `False` to disable OCR entirely.
-</ParamField>
-
-<ParamField path="ocr_adaptor" type="OcrAdaptor | None" default="None">
-  A custom OCR engine adaptor. If `None`, the default `TesseractAdaptor` is used. See [OCR Adaptors](/guides/ocr#ocr-adaptors).
-</ParamField>
+<Tip>
+For other parameters, see the shared [to_markdown() API reference](/python/api/to_markdown) which applies to all extraction functions.
+</Tip>
 
 ---
 
 ## Returns
 
 <ResponseField name="str" type="string">
-  When `page_chunks=False` (default). A single plain text string containing all extracted pages joined by `page_separator`.
+  When `page_chunks=False` (default). A single plain text string containing all extracted pages.
 </ResponseField>
 
 <ResponseField name="list[dict]" type="list">
@@ -68,8 +42,10 @@ pymupdf4llm.to_text(
   | Key | Type | Description |
   |-----|------|-------------|
   | `text` | `str` | Plain text content of the page |
-  | `metadata` | `dict` | Page metadata — see [Page Chunking](/concepts/page-chunking) for the full schema |
+  | `metadata` | `dict` | Page metadata 
 </ResponseField>
+
+{/*— see [Page Chunking](/concepts/page-chunking) for the full schema |*/}
 
 ---
 
@@ -80,7 +56,6 @@ pymupdf4llm.to_text(
 | `FileNotFoundError` | `doc` is a path string that does not exist |
 | `ValueError` | An index in `pages` is out of range for the document |
 | `ImportError` | `ocr=True` or `force_ocr=True` but the `ocr` dependency is not installed |
-| `LicenceError` | Document format requires PyMuPDF Pro which is not activated |
 
 ---
 
@@ -94,27 +69,13 @@ import pymupdf4llm
 text = pymupdf4llm.to_text("document.pdf")
 ```
 
-### Custom page separator
-
-```python
-text = pymupdf4llm.to_text("document.pdf", page_separator="\n\n---\n\n")
-pages = text.split("---")
-```
-
-### Form feed separator for text processing pipelines
-
-```python
-text = pymupdf4llm.to_text("document.pdf", page_separator="\f")
-pages = text.split("\f")
-print(f"{len(pages)} pages extracted")
-```
-
 ### Page chunks
 
 ```python
 chunks = pymupdf4llm.to_text("document.pdf", page_chunks=True)
 for chunk in chunks:
     print(f"Page {chunk['metadata']['page']}: {len(chunk['text'])} chars")
+    print(chunk['text'])
 ```
 
 ### Save to file
@@ -130,17 +91,22 @@ Path("output.txt").write_text(text, encoding="utf-8")
 
 ## See Also
 
-<CardGroup cols={2}>
-  <Card title="Extract Text Guide" icon="align-left" href="/guides/extract-text">
-    Full walkthrough with whitespace handling and common options.
+<CardGroup cols={3}>
+  <Card title="Extract Text Guide" icon="align-left" href="/python/guides/extract-text">
+    Full guided overview.
   </Card>
-  <Card title="to_markdown()" icon="markdown" href="/api/to_markdown">
+  <Card title="to_markdown()" icon="markdown" href="/python/api/to_markdown">
     Markdown output preserving document structure.
   </Card>
-  <Card title="to_json()" icon="brackets-curly" href="/api/to_json">
+  <Card title="to_json()" icon="brackets-curly" href="/python/api/to_json">
     Structured output with bounding boxes and layout data.
   </Card>
+</CardGroup>
+
+{
+/*
   <Card title="Page Chunking" icon="layer-group" href="/concepts/page-chunking">
     Full schema for page_chunks=True output.
   </Card>
-</CardGroup>
+  */
+}

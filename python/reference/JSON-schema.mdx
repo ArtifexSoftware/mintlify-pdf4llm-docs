@@ -1,0 +1,327 @@
+---
+title: JSON Schema
+description: Full field reference for the structured output returned by to_json().
+---
+
+## Overview
+
+`to_json()` returns a list of page objects — one per extracted page. Each page contains a list of blocks, and each block contains type-specific fields. This page documents every object and field in the output hierarchy.
+
+```
+document
+└── page[]
+    └── block[]
+        ├── text block
+        │   └── line[]
+        │       └── span[]
+        ├── image block
+        ├── table block
+        │   └── row[]
+        │       └── cell[]
+        └── drawing block
+```
+
+## TODO: Full schema with descriptions for each key, including examples of the content and metadata fields.
+
+{/*
+---
+
+## Page Object
+
+The top-level item in the returned list. One object per extracted page.
+
+```python
+data = pymupdf4llm.to_json("document.pdf")
+page = data[0]
+```
+
+```json
+{
+  "page": 0,
+  "width": 595.0,
+  "height": 842.0,
+  "blocks": []
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `page` | `int` | Zero-based page index |
+| `width` | `float` | Page width in PDF points (1 pt = 1/72 inch) |
+| `height` | `float` | Page height in PDF points |
+| `blocks` | `list[dict]` | Ordered list of content blocks in reading order |
+
+<Note>
+  All coordinates in the JSON output use PDF points with the origin `(0, 0)` at the **top-left** corner of the page. X increases to the right; Y increases downward.
+</Note>
+
+---
+
+## Block Object
+
+Every block has a `type` field that determines its structure. Blocks are ordered by reading position on the page.
+
+| `type` | Description |
+|--------|-------------|
+| `"text"` | A block of one or more text lines |
+| `"image"` | An embedded raster image |
+| `"table"` | A detected table with row and cell data |
+| `"drawing"` | A vector drawing or line art region |
+
+All block types share the following base fields:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | `str` | Block type — `"text"`, `"image"`, `"table"`, or `"drawing"` |
+| `bbox` | `list[float]` | Bounding box `[x0, y0, x1, y1]` in PDF points |
+| `number` | `int` | Block index on the page, in document order |
+
+---
+
+## Text Block
+
+```json
+{
+  "type": "text",
+  "bbox": [72.0, 91.4, 523.0, 110.2],
+  "number": 0,
+  "lines": [
+    {
+      "bbox": [72.0, 91.4, 523.0, 110.2],
+      "wmode": 0,
+      "dir": [1.0, 0.0],
+      "spans": []
+    }
+  ]
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `lines` | `list[dict]` | Ordered list of text lines within the block |
+
+### Line Object
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `bbox` | `list[float]` | Bounding box `[x0, y0, x1, y1]` of the line |
+| `wmode` | `int` | Writing mode — `0` for horizontal, `1` for vertical |
+| `dir` | `list[float]` | Normalised direction vector `[cos θ, sin θ]` of the text baseline |
+| `spans` | `list[dict]` | Ordered list of text spans within the line |
+
+### Span Object
+
+A span is a run of text that shares the same font, size, and colour. It is the most granular unit in the text hierarchy.
+
+```json
+{
+  "text": "Introduction",
+  "bbox": [72.0, 91.4, 201.3, 110.2],
+  "origin": [72.0, 106.1],
+  "font": "Helvetica-Bold",
+  "size": 16.0,
+  "color": "#000000",
+  "flags": 20,
+  "ascender": 0.93,
+  "descender": -0.24
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `text` | `str` | The text content of the span |
+| `bbox` | `list[float]` | Bounding box `[x0, y0, x1, y1]` of the span |
+| `origin` | `list[float]` | `[x, y]` coordinates of the text baseline origin |
+| `font` | `str` | Font name |
+| `size` | `float` | Font size in points |
+| `color` | `str` | Text colour as a hex string (e.g. `"#000000"`) |
+| `flags` | `int` | Font style bitmask — see table below |
+| `ascender` | `float` | Font ascender value normalised to font size |
+| `descender` | `float` | Font descender value normalised to font size (typically negative) |
+
+### Font Flags Bitmask
+
+The `flags` field is a bitmask encoding text styling attributes:
+
+| Bit | Value | Meaning |
+|-----|-------|---------|
+| 0 | `1` | Superscript |
+| 1 | `2` | Italic |
+| 2 | `4` | Serifed font |
+| 3 | `8` | Monospaced font |
+| 4 | `16` | Bold |
+
+To test for a flag:
+
+```python
+is_bold   = bool(span["flags"] & 16)
+is_italic = bool(span["flags"] & 2)
+is_mono   = bool(span["flags"] & 8)
+```
+
+---
+
+## Image Block
+
+```json
+{
+  "type": "image",
+  "bbox": [72.0, 200.0, 400.0, 450.0],
+  "number": 2,
+  "width": 328,
+  "height": 250,
+  "colorspace": 3,
+  "cs-name": "DeviceRGB",
+  "xref": 42,
+  "ext": "png",
+  "image": "<base64-encoded-string>"
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `width` | `int` | Image width in pixels |
+| `height` | `int` | Image height in pixels |
+| `colorspace` | `int` | Number of colour components (e.g. `3` for RGB, `1` for grayscale) |
+| `cs-name` | `str` | Colour space name — e.g. `"DeviceRGB"`, `"DeviceGray"`, `"DeviceCMYK"` |
+| `xref` | `int` | PDF cross-reference number of the image object |
+| `ext` | `str` | Original image format extension — e.g. `"png"`, `"jpeg"` |
+| `image` | `str` | Base64-encoded image bytes |
+
+To decode and save an image from the JSON output:
+
+```python
+import base64
+from pathlib import Path
+
+for page in data:
+    for i, block in enumerate(b for b in page["blocks"] if b["type"] == "image"):
+        img_bytes = base64.b64decode(block["image"])
+        Path(f"page-{page['page']}-img-{i}.{block['ext']}").write_bytes(img_bytes)
+```
+
+---
+
+## Table Block
+
+```json
+{
+  "type": "table",
+  "bbox": [72.0, 140.0, 523.0, 320.0],
+  "number": 1,
+  "rows": [
+    {
+      "bbox": [72.0, 140.0, 523.0, 160.0],
+      "cells": [
+        {
+          "row": 0,
+          "col": 0,
+          "text": "Product",
+          "bbox": [72.0, 140.0, 200.0, 160.0],
+          "is_header": true
+        }
+      ]
+    }
+  ]
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `rows` | `list[dict]` | Ordered list of row objects |
+
+### Row Object
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `bbox` | `list[float]` | Bounding box `[x0, y0, x1, y1]` of the row |
+| `cells` | `list[dict]` | Ordered list of cell objects within the row |
+
+### Cell Object
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `row` | `int` | Zero-based row index |
+| `col` | `int` | Zero-based column index |
+| `text` | `str` | Text content of the cell |
+| `bbox` | `list[float]` | Bounding box `[x0, y0, x1, y1]` of the cell |
+| `is_header` | `bool` | Whether the cell belongs to the header row |
+
+---
+
+## Drawing Block
+
+```json
+{
+  "type": "drawing",
+  "bbox": [72.0, 500.0, 300.0, 650.0],
+  "number": 4,
+  "fill": "#e8f0fe",
+  "stroke": "#000000",
+  "fill_opacity": 1.0,
+  "stroke_opacity": 1.0
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `fill` | `str \| null` | Fill colour as a hex string, or `null` if unfilled |
+| `stroke` | `str \| null` | Stroke colour as a hex string, or `null` if no stroke |
+| `fill_opacity` | `float` | Fill opacity — `0.0` (transparent) to `1.0` (opaque) |
+| `stroke_opacity` | `float` | Stroke opacity — `0.0` (transparent) to `1.0` (opaque) |
+
+---
+
+## Complete Example
+
+```python
+import pymupdf4llm
+import json
+from pathlib import Path
+
+data = pymupdf4llm.to_json("document.pdf")
+
+for page in data:
+    print(f"\n=== Page {page['page']} ({page['width']:.0f}×{page['height']:.0f}pt) ===")
+    for block in page["blocks"]:
+        if block["type"] == "text":
+            for line in block["lines"]:
+                for span in line["spans"]:
+                    bold = "B" if span["flags"] & 16 else " "
+                    italic = "I" if span["flags"] & 2 else " "
+                    print(f"  [{bold}{italic}] {span['size']:5.1f}pt  {span['text'][:60]!r}")
+        elif block["type"] == "image":
+            print(f"  [IMG] {block['width']}×{block['height']}px  {block['ext']}")
+        elif block["type"] == "table":
+            rows = len(block["rows"])
+            cols = len(block["rows"][0]["cells"]) if rows else 0
+            print(f"  [TBL] {rows} rows × {cols} cols")
+        elif block["type"] == "drawing":
+            print(f"  [DRW] fill={block['fill']}  stroke={block['stroke']}")
+
+# Save to disk
+Path("output.json").write_text(
+    json.dumps(data, indent=2, ensure_ascii=False),
+    encoding="utf-8"
+)
+```
+
+---
+*/}
+
+## See Also
+
+<CardGroup cols={2}>
+  <Card title="Extract JSON Guide" icon="brackets-curly" href="/python/guides/extract-json">
+    Working walkthrough with filtering, DataFrame export, and pipeline examples.
+  </Card>
+  <Card title="to_json()" icon="code" href="/python/api/to_json">
+    Full API reference for to_json().
+  </Card>
+  <Card title="Chunk Schema" icon="layer-group" href="/python/reference/chunk-schema">
+    Schema for page_chunks=True output from to_markdown().
+  </Card>
+  <Card title="Tables Guide" icon="table" href="/python/guides/tables">
+    Extracting and working with table blocks.
+  </Card>
+</CardGroup>

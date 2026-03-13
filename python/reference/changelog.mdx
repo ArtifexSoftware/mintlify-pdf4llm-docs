@@ -1,0 +1,472 @@
+---
+title: Changelog
+description: Version history and release notes for PyMuPDF4LLM.
+---
+
+## v1.27.2.1
+
+PyMuPDF4LLM now automatically installs and uses `pymupdf_layout`.
+
+- Installing `pymupdf4llm` automatically installs `pymupdf_layout`. Exact versions of both `pymupdf` and `pymupdf_layout` are now pinned (previously `pymupdf>=1.27.1` was used).
+- `import pymupdf4llm` automatically initialises layout support.
+- Layout can be disabled by calling `pymupdf4llm.use_layout(False)`.
+
+---
+
+## v0.3.4
+
+<AccordionGroup>
+  <Accordion title="Fixes">
+    - [#356](https://github.com/pymupdf/pymupdf4llm/discussions/356) — Page chunk output under `to_text()` may fail for erroneous layout bboxes.
+  </Accordion>
+  <Accordion title="Changes">
+    - Added support for RapidOCR via a callable plugin.
+    - Added support for improved OCR via a combination of RapidOCR and Tesseract-OCR.
+    - Changed default DPI for OCR to `300` (was `400`).
+    - Added new parameter `ocr_function=None`. When not `None`, must be a callable that OCRs the page by giving it a text layer.
+    - Added new parameter `force_ocr=False` to all extraction functions. Requires `ocr_function` to be set. When `True`, `ocr_function` is called for every page, bypassing the standard OCR worthiness check.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## v0.2.9
+
+<AccordionGroup>
+  <Accordion title="Fixes">
+    - [#356](https://github.com/pymupdf/pymupdf4llm/discussions/356) — Page chunk output under `to_text()` may fail for erroneous layout bboxes.
+    - [#355](https://github.com/pymupdf/pymupdf4llm/issues/355) — Image saving fails if the document filename contains folder specifications.
+  </Accordion>
+  <Accordion title="Changes">
+    - Added new top-level function `get_key_values()` to extract field names and values from Form PDFs. Always available regardless of whether PyMuPDF-Layout is active.
+    - **Removed** OpenCV dependency. Previously used to determine whether a page is worthwhile OCR'ing — replaced with NumPy for these checks.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## v0.2.8
+
+<AccordionGroup>
+  <Accordion title="Fixes">
+    - [#349](https://github.com/pymupdf/pymupdf4llm/discussions/349) — Is it possible to change the OCR language when using `-layout`?
+    - [#352](https://github.com/pymupdf/pymupdf4llm/issues/352) — Does not respect the `image_path` keyword argument when `write_images=True`.
+    - [#353](https://github.com/pymupdf/pymupdf4llm/issues/353) — How do I filter out pixmaps with non-empty size but empty value?
+  </Accordion>
+  <Accordion title="Changes">
+    - Added new parameter `ocr_language`. A string passed directly to Tesseract-OCR — the user is responsible for correct Tesseract language code formatting.
+    - Changed the format of the `"page_boxes"` key in page chunk dictionaries (layout mode). Now a **list of dictionaries** (was a list of lists). Each dictionary contains:
+      - `"index"` — 0-based integer enumerating layout boxes in reading order
+      - `"class"` — string denoting the bbox class (`"table"`, `"list-item"`, `"section-header"`, etc.)
+      - `"bbox"` — `pymupdf.IRect` of the layout boundary box
+      - `"pos"` — `(start, stop)` tuple for slicing the bbox text from `chunk["text"]`
+    - Multiple performance improvements, primarily around rectangle containment checks.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## v0.2.7
+
+<AccordionGroup>
+  <Accordion title="Fixes">
+    - [#323](https://github.com/pymupdf/pymupdf4llm/issues/323) — `page_chunks=True` parameter was ignored in PyMuPDF-Layout mode.
+  </Accordion>
+  <Accordion title="Changes">
+    - `to_markdown()` and `to_text()` now both support page chunk output via `page_chunks=True`.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## v0.2.6
+
+<AccordionGroup>
+  <Accordion title="Fixes">
+    - [Forum](https://forum.mupdf.com/t/bug-pymupdf4llm-list-index-out-of-range-in-document-layout-py-2/216) — List index out of range in `document_layout.py`.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## v0.2.5
+
+<AccordionGroup>
+  <Accordion title="Fixes">
+    - [#341](https://github.com/pymupdf/RAG/issues/341) — Broken Markdown parsing for a new line directly followed by `'o'`.
+  </Accordion>
+  <Accordion title="Changes">
+    - New parameter `table_format` in `to_text()` (PyMuPDF-Layout only). Controls the appearance of tables in plain text output. Possible values are defined in `tabulate.tabulate_formats`. Default is `"grid"`.
+    - Optional dependencies can now be installed together: `pip install pymupdf4llm[ocr,layout]`. The `"ocr"` extra installs `opencv-python` for automatic OCR support in PyMuPDF-Layout mode.
+    - Major rework of the heuristics that determine whether a page should be OCR'd.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## v0.2.4
+
+<AccordionGroup>
+  <Accordion title="Fixes">
+    - [#335](https://github.com/pymupdf/RAG/issues/335) — `KeyError: "has_ocr_text"`.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## v0.2.3
+
+<AccordionGroup>
+  <Accordion title="Fixes">
+    - [#332](https://github.com/pymupdf/RAG/issues/332) — `TypeError: to_markdown() got an unexpected keyword argument 'header'`.
+  </Accordion>
+  <Accordion title="Changes">
+    - Output methods now accept a new parameter `ocr_dpi=400` which sets the OCR resolution for full-page OCR.
+    - The OCR detection heuristics are more fine-grained and now detect more OCR-worthy situations.
+    - Resolved multiple performance issues, specifically for documents with very many images and extremely large `StructTreeRoot` objects.
+    - Reflected layout-specific API changes in legacy code — `NotImplementedError` is now raised when layout-only features are used outside of layout mode.
+    - Information messages during document parsing are now written to stdout collectively at the end of the parsing phase.
+    - Added support for the `page_separators` parameter in legacy mode.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## v0.2.1
+
+<AccordionGroup>
+  <Accordion title="Fixes">
+    - [#320](https://github.com/pymupdf/RAG/issues/320) — `ValueError: min() iterable argument is empty`.
+    - [#319](https://github.com/pymupdf/RAG/issues/319) — `ValueError: min() arg is an empty sequence`.
+  </Accordion>
+  <Accordion title="Changes">
+    - OCR invocation now differentiates between full-page OCR and text-only OCR. If a page contains text but the percentage of unreadable characters exceeds 90%, only the affected text span bounding boxes are OCR'd and replaced — rather than the whole page.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## v0.2.0
+
+This release introduces full support for the [PyMuPDF-Layout](https://pypi.org/project/pymupdf-layout/) package — a radically new AI-based approach for detecting document page layouts.
+
+**Highlights:**
+
+- Greatly improved table detection
+- Support for list item hierarchy levels
+- Detection of page headers and footers
+- Improved detection of text paragraphs, titles, and section headers
+- New output options beyond Markdown: plain text (`to_text()`) and structured JSON (`to_json()`)
+- Automatic OCR detection — invokes Tesseract when the page has little or no readable text, is mostly covered by images, or contains many character-sized vector graphics (requires Tesseract and `opencv-python`)
+
+<Note>
+  PyMuPDF-Layout is not open-source and carries its own licence. It also requires additional packages including `onnxruntime`, `numpy`, `sympy`, and `opencv-python`. Layout support remains opt-in. To activate it, import `pymupdf_layout` **before** importing `pymupdf4llm`:
+
+  ```python
+  import pymupdf_layout
+  import pymupdf4llm
+  ```
+</Note>
+
+<AccordionGroup>
+  <Accordion title="Changes">
+    - When `show_progress=True`, the [`tqdm`](https://pypi.org/project/tqdm/) package is used automatically if installed. Falls back to a built-in text-based progress bar if not available.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## v0.0.27
+
+<AccordionGroup>
+  <Accordion title="Fixes">
+    - [#296](https://github.com/pymupdf/RAG/issues/296) — A specific diagram incorrectly recognised as significant.
+    - [#294](https://github.com/pymupdf/RAG/issues/294) — Unable to extract images from page.
+    - [#272](https://github.com/pymupdf/RAG/issues/272) — Disappeared page breaks.
+  </Accordion>
+  <Accordion title="Changes">
+    - New parameter `page_separators=False` in `to_markdown()`. When `True` and `page_chunks=False`, a line `--- end of page=nnn ---` is appended to each page's Markdown text. Page number is 0-based. Intended for debugging purposes.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## v0.0.26
+
+<AccordionGroup>
+  <Accordion title="Fixes">
+    - [#289](https://github.com/pymupdf/RAG/issues/289) — Content duplication with the latest version.
+    - [#275](https://github.com/pymupdf/RAG/issues/275) — Text with background missing from output.
+    - [#262](https://github.com/pymupdf/RAG/issues/262) — Markdown error parsing.
+  </Accordion>
+  <Accordion title="Changes">
+    - The PyMuPDF table module's `to_markdown()` now outputs Markdown-styled cell text. Previously, table cells were extracted as plain text only.
+    - `TocHeaders` is now a top-level import and can be used directly.
+    - New parameter `detect_bg_color=True` in `to_markdown()`. Guesses the page background colour and ignores fill-only vectors matching it. Set to `False` to always consider fill vectors.
+    - Text written with a `Type 3` font is now always included. Previously it was treated as invisible and suppressed.
+    - Package now includes the GNU AGPL 3.0 licence file. PyMuPDF4LLM is dual-licensed under GNU AGPL 3.0 and individual commercial licences.
+    - Added `versions_file.py` to enforce a minimum PyMuPDF version at import time.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## v0.0.25
+
+<AccordionGroup>
+  <Accordion title="Fixes">
+    - [#282](https://github.com/pymupdf/RAG/issues/282) — Content duplication with the latest version.
+    - [#281](https://github.com/pymupdf/RAG/issues/281) — Latest version returns empty text for some PDFs.
+    - [#280](https://github.com/pymupdf/RAG/issues/280) — Cannot extract text when `ignore_images=False`.
+    - [#278](https://github.com/pymupdf/RAG/issues/278) — Title words are fragmented.
+    - [#249](https://github.com/pymupdf/RAG/issues/249) — Title duplication in Markdown format.
+    - [#202](https://github.com/pymupdf/RAG/issues/202) — Bad rect issue.
+  </Accordion>
+  <Accordion title="Changes">
+    - Table module `to_markdown()` now outputs Markdown-styled cell text.
+    - `TocHeaders` is now a top-level import.
+    - Text written with a `Type 3` font is now always included.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## v0.0.24
+
+<AccordionGroup>
+  <Accordion title="Fixes">
+    - Fixed `UnboundLocalError`.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## v0.0.23
+
+<AccordionGroup>
+  <Accordion title="Fixes">
+    - [#265](https://github.com/pymupdf/RAG/issues/265) — Code error correction.
+    - [#263](https://github.com/pymupdf/RAG/issues/263) — `table_strategy=None` raises an error.
+    - [#261](https://github.com/pymupdf/RAG/issues/261) — Wrong Markdown output in latest PyMuPDF versions.
+  </Accordion>
+  <Accordion title="Changes">
+    - High-speed vector graphics count: when `graphics_limit` is set, drawings are no longer extracted just for counting purposes.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## v0.0.22
+
+<AccordionGroup>
+  <Accordion title="Fixes">
+    - [#251](https://github.com/pymupdf/RAG/issues/251) — Images slightly larger than the page size are being ignored.
+    - [#255](https://github.com/pymupdf/RAG/issues/255) — Single-row or single-column tables are skipped.
+    - [#258](https://github.com/pymupdf/RAG/issues/258) — `to_markdown()` crashes on some documents.
+  </Accordion>
+  <Accordion title="Changes">
+    - Added class `TocHeaders` as an alternative way to identify headers.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## v0.0.21
+
+<AccordionGroup>
+  <Accordion title="Fixes">
+    - [#116](https://github.com/pymupdf/RAG/issues/116) — Handling graphical images and superscripts.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## v0.0.20
+
+<AccordionGroup>
+  <Accordion title="Fixes">
+    - [#171](https://github.com/pymupdf/RAG/issues/171) — Text rects overlap with tables and images that should be excluded.
+    - [#189](https://github.com/pymupdf/RAG/issues/189) — The position of the extracted image is incorrect.
+    - [#238](https://github.com/pymupdf/RAG/issues/238) — Text extraction missing when text is laid out around a picture.
+  </Accordion>
+  <Accordion title="Changes">
+    - New parameter `ignore_images` (bool). When `True`, images are not considered in any way. Useful for pages dense with images that prevent meaningful layout analysis (e.g. PowerPoint slides).
+    - New parameter `ignore_graphics` (bool). When `True`, vector graphics are not considered except for table detection. Useful for pages dense with vector graphics (e.g. PowerPoint slides).
+    - New parameter `max_levels` on `IdentifyHeaders`. Limits the number of header tag levels generated. Example: `IdentifyHeaders(doc, max_levels=3)` ensures at most three header levels are produced.
+    - `table_strategy=None` now disables table detection entirely, which can significantly speed up processing on documents without tables.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## v0.0.19
+
+<AccordionGroup>
+  <Accordion title="Fixes">
+    Includes fixes from v0.0.18.
+
+    - [#158](https://github.com/pymupdf/RAG/issues/158) — Very long titles when converting to Markdown.
+    - [#155](https://github.com/pymupdf/RAG/issues/155) — Inconsistent image extraction from image-only PDFs.
+    - [#161](https://github.com/pymupdf/RAG/issues/161) — `force_text` parameter ignored.
+    - [#162](https://github.com/pymupdf/RAG/issues/162) — `to_markdown()` not outputting all pages.
+    - [#173](https://github.com/pymupdf/RAG/issues/173) — First column of table repeated before the actual table.
+    - [#187](https://github.com/pymupdf/RAG/issues/187) — Unsolicited text particles.
+    - [#188](https://github.com/pymupdf/RAG/issues/188) — Slow conversion to Markdown.
+    - [#191](https://github.com/pymupdf/RAG/issues/191) — Text extraction stops mid-document.
+    - [#212](https://github.com/pymupdf/RAG/issues/212) — Only one image extracted per page when multiple exist.
+    - [#213](https://github.com/pymupdf/RAG/issues/213) — Replacement characters (&#xfffd;) appear after conversion.
+    - [#215](https://github.com/pymupdf/RAG/issues/215) — Excessive time spent identifying text bboxes.
+    - [#218](https://github.com/pymupdf/RAG/issues/218) — `IndexError` in `get_raw_lines` when processing PDFs with formulas.
+    - [#225](https://github.com/pymupdf/RAG/issues/225) — Text with background missing from output.
+    - [#229](https://github.com/pymupdf/RAG/issues/229) — Duplicated table content.
+  </Accordion>
+  <Accordion title="Changes">
+    - New parameter `filename` (str). Overwrites or sets the filename for saved images. Useful when the document is opened from memory.
+    - New parameter `use_glyphs` (bool). When `True`, uses the glyph number of a character for fonts without a Unicode back-translation. Default `False` renders `&#xfffd;` in these cases.
+    - Added **strikethrough support** — striked-out text is now detected and rendered as `~~text~~`.
+    - Improved **background colour detection** — if all four page corners share the same colour, that colour is assumed to be the background. Text and vectors in that colour are ignored.
+    - Improved **invisible text detection** — text with an alpha value of `0` is now ignored.
+    - Improved **fake-bold detection** — text mimicking bold appearance is now treated as standard bold in most cases.
+    - Header detection now uses the **largest font size** on the line. All spans in a header line are rendered with uniform appearance.
+    - Changed `graphics_limit` behaviour: previously, exceeding the limit caused the entire page to be skipped. Now only vector graphics **outside table bounding boxes** are ignored — images, text, and table content remain extractable.
+    - Changed default for `margins` to `0`. The previous default `(0, 50, 0, 50)` caused confusion by silently ignoring 50pt at the top and bottom of pages.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## v0.0.17
+
+<AccordionGroup>
+  <Accordion title="Fixes">
+    - [#147](https://github.com/pymupdf/RAG/issues/147) — Error when page contains nothing but a table.
+    - [#81](https://github.com/pymupdf/RAG/issues/81) — Issues with bullet points in PDFs.
+    - [#78](https://github.com/pymupdf/RAG/issues/78) — Multi-column PDF text extraction.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## v0.0.15
+
+<AccordionGroup>
+  <Accordion title="Fixes">
+    - [#138](https://github.com/pymupdf/RAG/issues/138) — Table not extracted and some text order incorrect.
+    - [#135](https://github.com/pymupdf/RAG/issues/135) — Problem with multiple columns in simple text.
+    - [#134](https://github.com/pymupdf/RAG/issues/134) — Exclude images based on size threshold parameter.
+    - [#132](https://github.com/pymupdf/RAG/issues/132) — Optionally embed images as base64 string.
+    - [#128](https://github.com/pymupdf/RAG/issues/128) — Enhanced image embedding format.
+  </Accordion>
+  <Accordion title="Changes">
+    - New parameter `embed_images` (bool). Embeds images and vector graphics in the Markdown text as base64-encoded strings. Ignores `write_images` and `image_path`.
+    - New parameter `image_size_limit` (float, default `0.05`). Images are ignored if their width or height is smaller than the corresponding 5% fraction of the page dimensions.
+    - Improved algorithm for determining text rectangle sequence on multi-column pages.
+    - Header identification change: if more than six header levels are needed, all text larger than body text is treated as level 6 (`######`).
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## v0.0.13
+
+<AccordionGroup>
+  <Accordion title="Fixes">
+    - [#112](https://github.com/pymupdf/RAG/issues/112) — Invalid bandwriter header dimensions/setup.
+  </Accordion>
+  <Accordion title="Changes">
+    - New parameter `ignore_code`. Suppresses special formatting of monospaced text — no code blocks are generated.
+    - New parameter `extract_words`. Enforces `page_chunks=True` and adds a `"words"` list to each page dictionary.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## v0.0.11
+
+<AccordionGroup>
+  <Accordion title="Fixes">
+    - [#90](https://github.com/pymupdf/RAG/issues/90) — `'Quad' object has no attribute 'tl'`.
+    - [#88](https://github.com/pymupdf/RAG/issues/88) — Bug in `is_significant` function.
+  </Accordion>
+  <Accordion title="Changes">
+    - Extended the list of recognised bullet point characters.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## v0.0.10
+
+<AccordionGroup>
+  <Accordion title="Fixes">
+    - [#73](https://github.com/pymupdf/RAG/issues/73) — Bug in `to_markdown` internal function.
+    - [#74](https://github.com/pymupdf/RAG/issues/74) — Minimum area for images and vector graphics.
+    - [#75](https://github.com/pymupdf/RAG/issues/75) — Poor Markdown generation for a particular PDF.
+    - [#76](https://github.com/pymupdf/RAG/issues/76) — Suggestion on useful API parameters.
+  </Accordion>
+  <Accordion title="Changes">
+    - Improved recognition of insignificant vector graphics — highlights and borders are now ignored.
+    - New parameter `image_format` to control the format of saved images.
+    - New parameter `image_path` to store images in a specific folder.
+    - Images are not stored if they are contained within another image on the same page.
+    - Images are not stored if their width or height is less than 5% of the corresponding page dimension.
+    - All text is always written. When `write_images=True`, text on images or graphics can be suppressed by setting `force_text=False`.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## v0.0.9
+
+<AccordionGroup>
+  <Accordion title="Fixes">
+    - [#71](https://github.com/pymupdf/RAG/issues/71) — Unexpected results in `pymupdf4llm` when `pymupdf` works correctly.
+    - [#68](https://github.com/pymupdf/RAG/issues/68) — Issue with text extraction near page footer.
+  </Accordion>
+  <Accordion title="Changes">
+    - Improved identification of scattered text span particles, addressing most out-of-sequence issues.
+    - Rotated pages are now correctly processed.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## v0.0.8
+
+<AccordionGroup>
+  <Accordion title="Fixes">
+    - [#65](https://github.com/pymupdf/RAG/issues/65) — Fixed typo in `pymupdf_rag.py`.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## v0.0.7
+
+<AccordionGroup>
+  <Accordion title="Fixes">
+    - [#54](https://github.com/pymupdf/RAG/issues/54) — Mistakes in orchestrating sentences. Text extraction no longer uses the `TEXT_DEHYPHENATE` flag.
+  </Accordion>
+  <Accordion title="Changes">
+    - Improved vector graphics algorithm. Graphics with strokes only near the boundary box border (common in code snippets) are now more reliably classified as irrelevant.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## v0.0.6
+
+<AccordionGroup>
+  <Accordion title="Fixes">
+    - [#55](https://github.com/pymupdf/RAG/issues/55) — `IndexError: list index out of range` in `helpers/multi_column.py`.
+    - [#54](https://github.com/pymupdf/RAG/issues/54) — Mistakes in orchestrating sentences.
+    - [#52](https://github.com/pymupdf/RAG/issues/52) — Chunking of text files.
+    - [#41](https://github.com/pymupdf/RAG/issues/41) / [#40](https://github.com/pymupdf/RAG/issues/40) — Improved page column detection (partial fix; complex layouts remain a challenge).
+  </Accordion>
+  <Accordion title="Changes">
+    - New parameter `dpi` to specify the resolution of extracted images.
+    - New parameters `page_width` and `page_height` for processing reflowable documents (text files, Office, e-books).
+    - New parameter `graphics_limit` to avoid spending runtime on low-value vector graphics content.
+    - New parameter `table_strategy` to directly control the table detection strategy.
+  </Accordion>
+</AccordionGroup>
