@@ -322,7 +322,6 @@ for page_num, page in enumerate(data.get("pages", [])):
     for block in page.get("boxes", []):
         for line in block.get("textlines", []):
             for span in line.get("spans", []):
-
                 text = span.get("text", "")
                 flags = span.get("flags", 0)
                 styles = parse_span_flags(flags)

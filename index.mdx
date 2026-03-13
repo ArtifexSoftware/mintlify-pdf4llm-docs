@@ -1,97 +1,137 @@
 ---
-title: "PDF4LLM"
-description: "Documentation for PDF4LLM, the software suite that converts PDFs into LLM-friendly formats for enhanced understanding and interaction."
+title: PDF4LLM
+description: Extract clean, structured content from any document — ready for LLMs, RAG pipelines, and AI applications.
 ---
 
-## Setting up
+{/*
+<img
+  className="block dark:hidden"
+  src="/images/hero-light.png"
+  alt="PyMuPDF4LLM"
+/>
+<img
+  className="hidden dark:block"
+  src="/images/hero-dark.png"
+  alt="PyMuPDF4LLM"
+/>
+*/}
 
-Get your documentation site up and running in minutes.
+<img
+  src="/images/hero.jpg"
+  alt="PyMuPDF4LLM"
+  className="mx-auto mb-8"
+/>
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
+## PyMuPDF4LLM
 
-## Make it yours
+### Document extraction that doesn't get in your way
 
-Design a docs site that looks great and empowers your users.
+Your LLM is only as good as the content you feed it. Most PDF libraries hand you a wall of unstructured text and leave you to figure out the rest. PyMuPDF4LLM gives you something you can actually use — clean Markdown, structured JSON, or plain text, with reading order preserved, tables intact, and images handled — in a single function call.
 
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
+Built on [PyMuPDF](https://pymupdf.readthedocs.io/), the fastest PDF processing engine available in Python, it is trusted by developers building production RAG pipelines, document intelligence systems, and LLM-powered applications worldwide.
+
+<CardGroup cols={2}>
+  <Card title="Get started in minutes" icon="bolt" href="/python/getting-started/installation">
+    One pip install. One function call. Clean output.
   </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
+  <Card title="See it in action" icon="play" href="/python/getting-started/quickstart">
+    Convert your first PDF to Markdown in five lines.
   </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
-  </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
-  </Card>
-</Columns>
+</CardGroup>
 
-## Create beautiful pages
+---
 
-Everything you need to create world-class documentation.
+### Everything your pipeline needs. Nothing it doesn't.
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
+<CardGroup cols={3}>
+  <Card title="Reading order that makes sense" icon="arrow-down-1-9">
+    Multi-column layouts, sidebars, and complex designs are reconstructed in the correct sequence — so your LLM reads the document the way a human would.
   </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
+  <Card title="Tables that stay intact" icon="table">
+    Detected automatically and rendered as structured Markdown. No more table data scrambled across disconnected lines.
   </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
+  <Card title="OCR without the friction" icon="eye">
+    Scanned and image-based pages are detected and processed automatically. No configuration. No manual triggers.
   </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
+  <Card title="RAG-ready from the start" icon="layer-group">
+    Per-page chunk dictionaries carry everything downstream needs — text, metadata, TOC entries, table positions, and word-level coordinates.
   </Card>
-</Columns>
+  <Card title="AI-powered layout analysis" icon="brain">
+    Optional PyMuPDF-Layout integration brings state-of-the-art AI region detection for the most complex and demanding documents.
+  </Card>
+  <Card title="Plugs into your stack" icon="plug">
+    Native loaders for LlamaIndex and LangChain. Drop into your existing pipeline with zero glue code.
+  </Card>
+</CardGroup>
 
-## Need inspiration?
+---
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+### Three output formats. One consistent API.
+
+Whether you're building a RAG pipeline, a custom document intelligence system, or a data extraction workflow, PyMuPDF4LLM produces the format you need.
+
+| Format | Best for |
+|--------|----------|
+| **Markdown** | LLM ingestion, RAG pipelines, and human-readable output with structure preserved |
+| **JSON** | Custom pipelines that need bounding boxes, font data, and per-block layout metadata |
+| **Plain Text** | Search indexing, NLP preprocessing, and tools that don't need formatting |
+
+
+---
+
+### Works with the documents you already have
+
+<CardGroup cols={2}>
+  <Card title="Standard formats" icon="file">
+    PDF, XPS, EPUB, MOBI, and more — supported out of the box, no extra setup required.
+  </Card>
+  <Card title="Office formats with Pro" icon="lock" href="/python/integrations/pymupdf-pro">
+    Unlock DOCX, PPTX, XLSX, and more with PyMuPDF Pro. The same clean API. The same consistent output.
+  </Card>
+</CardGroup>
+
+---
+
+### Trusted at every scale
+
+PyMuPDF4LLM is built for production. It handles everything from single-page invoices to thousands of pages of legal, financial, or technical documentation — with predictable performance and output quality you can rely on.
+
+<CardGroup cols={3}>
+  <Card title="Performance" icon="gauge-high">
+    Built on PyMuPDF, the fastest PDF engine available in Python — benchmarked faster than every major alternative.
+  </Card>
+  <Card title="Accuracy" icon="bullseye">
+    AI-powered layout analysis and best-in-class table detection means fewer pipeline errors and less manual correction.
+  </Card>
+  <Card title="Flexibility" icon="sliders">
+    Swap OCR engines, customise layout detection, apply page margins, or tune every extraction parameter to your needs.
+  </Card>
+</CardGroup>
+
+---
+{/*
+## Explore the docs
+
+<CardGroup cols={2}>
+  <Card title="Installation" icon="circle-down" href="/getting-started/installation">
+    Install PyMuPDF4LLM and its optional dependencies for layout, OCR, and Office support.
+  </Card>
+  <Card title="Quickstart" icon="bolt" href="/getting-started/quickstart">
+    Your first extraction in five lines of Python.
+  </Card>
+  <Card title="Guides" icon="map" href="/guides/extract-markdown">
+    Task-oriented walkthroughs for every extraction use case.
+  </Card>
+  <Card title="Core Concepts" icon="book-open" href="/concepts/output-formats">
+    Understand output formats, chunking, OCR, and header detection.
+  </Card>
+  <Card title="Integrations" icon="plug" href="/integrations/llamaindex">
+    LlamaIndex, LangChain, and PyMuPDF Pro.
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/to_markdown">
+    Every function, class, and parameter — fully documented.
+  </Card>
+</CardGroup>
+
+*/}
+
