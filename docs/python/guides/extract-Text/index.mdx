@@ -1,0 +1,113 @@
+---
+title: Extract Text
+description: Use to_text() to get clean, plain text output stripped of all Markdown formatting.
+---
+
+## Overview
+
+`to_text()` extracts the content of a document as a plain text string — no Markdown syntax, no bounding boxes, no metadata. It's the simplest output format and the right choice when your downstream tool doesn't need formatting or structure, just the words.
+
+```python
+import pymupdf4llm
+
+text = pymupdf4llm.to_text("document.pdf")
+print(text)
+```
+
+---
+
+## When to Use Plain Text
+
+| Use Case | Recommended Format |
+|----------|--------------------|
+| Search indexing | ✅ Plain text |
+| Keyword extraction / NLP | ✅ Plain text |
+| LLM summarisation (simple) | ✅ Plain text |
+| RAG pipelines with chunking | ⚠️ Consider Markdown or page chunks |
+| Preserving document structure | ❌ Use Markdown |
+| Custom layout pipelines | ❌ Use JSON |
+
+<Tip>
+  If you're feeding content into an LLM and document structure matters — headings, lists, tables — use `to_markdown()` instead. LLMs handle Markdown well and the added structure improves output quality.
+</Tip>
+
+---
+
+## Page Selection
+
+Extract only the pages you need:
+
+```python
+text = pymupdf4llm.to_text("document.pdf", pages=[0, 1, 2])
+```
+
+---
+
+## Page Chunks
+
+As with `to_markdown()`, you can return a list of per-page dictionaries using `page_chunks=True`:
+
+```python
+chunks = pymupdf4llm.to_text("document.pdf", page_chunks=True)
+
+for chunk in chunks:
+    print(f"Page {chunk['metadata']}: {len(chunk['text'])} chars")
+```
+
+Each chunk contains a `text` object with the plain text for that page and a `metadata` dictionary with page number and document information.
+
+---
+
+## Saving to a File
+
+Write the output to a `.txt` file using `pathlib`:
+
+```python
+import pymupdf4llm
+from pathlib import Path
+
+text = pymupdf4llm.to_text("document.pdf")
+Path("output.txt").write_text(text, encoding="utf-8")
+```
+
+
+---
+
+## OCR Behaviour
+
+Like `to_markdown()`, `to_text()` triggers OCR automatically on pages with no selectable text. To enable or disable auto-OCR capabilities:
+
+```python
+# Enable OCR on all pages
+text = pymupdf4llm.to_text("document.pdf", use_ocr=True)
+
+# Disable OCR entirely
+text = pymupdf4llm.to_text("document.pdf", use_ocr=False)
+```
+
+See [OCR](/python/guides/OCR) for a full walkthrough of OCR options and adaptors.
+
+---
+
+<Note>
+  For the full API signature, see the [`to_text()` API reference](/python/api/to_text).
+</Note>
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Extract Markdown" icon="markdown" href="/guides/extract-markdown">
+    Preserve structure and formatting for LLM pipelines.
+  </Card>
+  <Card title="Extract JSON" icon="brackets-curly" href="/guides/extract-json">
+    Access bounding boxes and layout data for custom pipelines.
+  </Card>
+  <Card title="Saving Output" icon="floppy-disk" href="/guides/saving-output">
+    Write .md, .json, and .txt files with pathlib.
+  </Card>
+  <Card title="OCR" icon="eye" href="/guides/ocr">
+    Control automatic OCR behaviour and adaptors.
+  </Card>
+</CardGroup>

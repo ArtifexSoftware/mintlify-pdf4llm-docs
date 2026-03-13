@@ -1,0 +1,360 @@
+---
+title: Extract JSON
+description: Use to_json() to get bounding boxes, layout data, and structured page content for custom pipelines.
+---
+
+## Overview
+
+`to_json()` returns document content as structured data rather than a Markdown string. Every text block, image, table, and drawing on each page is represented as a dictionary with positional and styling metadata attached.
+
+This makes it the right choice when you need to:
+- Build a custom rendering or post-processing pipeline
+- Access bounding box coordinates for text regions
+- Preserve font, size, and color information
+- Pass structured layout data to a downstream ML model or search index
+
+```python
+import pymupdf4llm
+
+data = pymupdf4llm.to_json("document.pdf")
+```
+
+---
+
+## Output Structure
+
+The return value is a list of page objects — one per page. Each page contains a list of blocks, and each block contains one or more lines or cells depending on its type.
+
+```json
+[
+  {
+    "page": 0,
+    "width": 595.0,
+    "height": 842.0,
+    "blocks": [
+      {
+        "type": "text",
+        "bbox": [72.0, 91.4, 523.0, 110.2],
+        "lines": [
+          {
+            "bbox": [72.0, 91.4, 523.0, 110.2],
+            "spans": [
+              {
+                "text": "Introduction",
+                "bbox": [72.0, 91.4, 201.3, 110.2],
+                "font": "Helvetica-Bold",
+                "size": 16.0,
+                "color": "#000000",
+                "flags": 20
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "image",
+        "bbox": [72.0, 200.0, 400.0, 450.0],
+        "width": 328,
+        "height": 250,
+        "ext": "png",
+        "image": "<base64-encoded-bytes>"
+      }
+    ]
+  }
+]
+```
+
+<Note>
+  Coordinates are in PDF points (1 point = 1/72 inch). The origin `(0, 0)` is the **top-left** corner of the page.
+</Note>
+
+---
+
+## Working with Bounding Boxes
+
+Every block, line, and span carries a `bbox` field — a four-element list `[x0, y0, x1, y1]` describing the rectangle that bounds that element.
+
+```python
+data = pymupdf4llm.to_json("document.pdf")
+
+for page in data:
+    print(f"--- Page {page['page']} ---")
+    for block in page["blocks"]:
+        if block["type"] == "text":
+            x0, y0, x1, y1 = block["bbox"]
+            print(f"Text block at ({x0:.1f}, {y0:.1f}) → ({x1:.1f}, {y1:.1f})")
+```
+
+This is useful for spatial filtering — for example, extracting only content within the main body area of a page and ignoring margins:
+
+```python
+def in_body(bbox, page_width, page_height, margin=72):
+    x0, y0, x1, y1 = bbox
+    return (
+        x0 >= margin and
+        x1 <= page_width - margin and
+        y0 >= margin and
+        y1 <= page_height - margin
+    )
+
+for page in data:
+    body_blocks = [
+        b for b in page["blocks"]
+        if in_body(b["bbox"], page["width"], page["height"])
+    ]
+```
+
+---
+
+## Extracting Span-Level Data
+
+Spans are the most granular unit in the JSON output. Each span represents a run of text that shares the same font, size, and color. This lets you identify headings, bold text, and other styled elements programmatically:
+
+```python
+for page in data:
+    for block in page["blocks"]:
+        if block["type"] != "text":
+            continue
+        for line in block["lines"]:
+            for span in line["spans"]:
+                if span["size"] >= 14:
+                    print(f"Heading candidate: {span['text']!r} (size {span['size']})")
+                if span["flags"] & 2**4:  # bold flag
+                    print(f"Bold text: {span['text']!r}")
+```
+
+### Font Flags Reference
+
+The `flags` field is a bitmask encoding text styling:
+
+| Bit | Value | Meaning |
+|-----|-------|---------|
+| 0 | `1` | Superscript |
+| 1 | `2` | Italic |
+| 2 | `4` | Serifed font |
+| 3 | `8` | Monospaced font |
+| 4 | `16` | Bold |
+
+#### Example Interpretation
+
+If we consider the following JSON:
+
+```json
+"spans": 
+[
+  {
+    "size": 12,
+    "flags": 6,
+    "bidi": 0,
+    "char_flags": 16,
+    "font": "MinionPro-It",
+    "color": 0,
+    "alpha": 255,
+    "ascender": 0.800000011920929,
+    "descender": -0.20000000298023224,
+    "text": "Italic text.",
+    "origin": [
+      72,
+      444.47998046875
+    ],
+    "bbox": [
+      72,
+      435.93597412109375,
+      122.60799407958984,
+      444.6239929199219
+    ],
+    "line": 0,
+    "block": 0,
+    "dir": [
+      1,
+      0
+    ]
+  },
+  {
+    "size": 12,
+    "flags": 0,
+    "bidi": 0,
+    "char_flags": 16,
+    "font": "Arial",
+    "color": 0,
+    "alpha": 255,
+    "ascender": 0.800000011920929,
+    "descender": -0.20000000298023224,
+    "text": "Hello World!",
+    "origin": [
+      122.625,
+      444.47998046875
+    ],
+    "bbox": [
+      122.625,
+      436.31787109375,
+      184.802001953125,
+      444.59130859375
+    ],
+    "line": 0,
+    "block": 0,
+    "dir": [
+      1,
+      0
+    ]
+  },
+  {
+    "size": 12,
+    "flags": 20,
+    "bidi": 0,
+    "char_flags": 24,
+    "font": "MinionPro-Bold",
+    "color": 0,
+    "alpha": 255,
+    "ascender": 0.800000011920929,
+    "descender": -0.20000000298023224,
+    "text": "This is bold",
+    "origin": [
+      187.53399658203125,
+      444.47998046875
+    ],
+    "bbox": [
+      187.53399658203125,
+      436.0439758300781,
+      245.98001098632812,
+      444.635986328125
+    ],
+    "line": 0,
+    "block": 0,
+    "dir": [
+      1,
+      0
+    ]
+  }
+]
+```
+A practical parse of the span flags might look like this:
+
+#### flags = 6
+`flags = 6` on "Italic text." with font MinionPro-It
+
+`6 = 2 + 4`
+
+this is consistent with italic + serifed text. 
+
+#### flags = 0
+`flags = 0` on "Hello World!" with font Arial
+
+`0` is consistent with regular text in PyMuPDF's span flag scheme.
+
+#### flags = 20
+`flags = 20` on "This is bold" with font MinionPro-Bold
+
+`20 = 16 + 4`
+
+this is consistent with bold + serifed text. 
+
+So the extracted styling in plain English is:
+
+"Italic text." → italic
+
+"Hello World!" → regular
+
+"This is bold" → bold 
+
+
+---
+
+## Page Selection
+
+As with `to_markdown()`, you can limit extraction to specific pages:
+
+```python
+data = pymupdf4llm.to_json("document.pdf", pages=[0, 1, 2])
+```
+
+---
+
+## Saving JSON Output
+
+Write the result to a `.json` file using Python's `json` module:
+
+```python
+import pymupdf4llm
+import json
+from pathlib import Path
+
+data = pymupdf4llm.to_json("document.pdf")
+
+Path("output.json").write_text(
+    json.dumps(data, indent=2, ensure_ascii=False),
+    encoding="utf-8"
+)
+```
+
+<Tip>
+  Use `ensure_ascii=False` to preserve non-Latin characters such as accented letters, CJK characters, and symbols.
+</Tip>
+
+---
+
+## Full Example: Building a Custom Text Pipeline
+
+```python
+import pymupdf4llm
+import json
+from pathlib import Path
+
+# parse the file 
+json_str = pymupdf4llm.to_json("document.pdf")
+
+# Convert JSON to Python Dictionary and iterate through the content
+data = json.loads(json_str)
+
+def parse_span_flags(flags: int):
+    return {
+        "superscript": bool(flags & 1),
+        "italic": bool(flags & 2),
+        "serifed": bool(flags & 4),
+        "monospaced": bool(flags & 8),
+        "bold": bool(flags & 16),
+    }
+
+# iterate through the document
+for page_num, page in enumerate(data.get("pages", [])):
+    print(f"\nPage {page_num}")
+
+    for block in page.get("boxes", []):
+        for line in block.get("textlines", []):
+            for span in line.get("spans", []):
+
+                text = span.get("text", "")
+                flags = span.get("flags", 0)
+                styles = parse_span_flags(flags)
+
+                print({
+                    "text": text,
+                    "flags": flags,
+                    "styles": styles
+                })
+```
+
+---
+
+<Note>
+  For the full API signature, see the [`to_json()` API reference](/api/to_json).
+</Note>
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="JSON Schema" icon="file-code" href="/reference/json-schema">
+    Full field descriptions for every object in the JSON output.
+  </Card>
+  <Card title="Extract Markdown" icon="markdown" href="/guides/extract-markdown">
+    Use to_markdown() when you need clean readable output instead.
+  </Card>
+  <Card title="Tables" icon="table" href="/guides/tables">
+    Table block structure and Markdown rendering.
+  </Card>
+  <Card title="Word-Level Extraction" icon="text-size" href="/guides/word-level-extraction">
+    Extract individual words with coordinate data.
+  </Card>
+</CardGroup>

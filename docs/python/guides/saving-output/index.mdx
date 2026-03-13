@@ -1,0 +1,221 @@
+---
+title: Saving Output
+description: Write extracted Markdown, JSON, and plain text to disk using pathlib.
+---
+
+## Overview
+
+PyMuPDF4LLM's extraction functions return strings or Python objects — writing them to disk is handled by standard Python. The recommended approach is `pathlib.Path`, which is clean, cross-platform, and available in the standard library with no additional dependencies.
+
+---
+
+## Saving Markdown
+
+```python
+import pymupdf4llm
+from pathlib import Path
+
+md_text = pymupdf4llm.to_markdown("document.pdf")
+Path("output.md").write_text(md_text, encoding="utf-8")
+```
+
+<Tip>
+  Always specify `encoding="utf-8"` when writing text files to ensure special characters, symbols, and non-Latin scripts are preserved correctly.
+</Tip>
+
+---
+
+## Saving JSON
+
+Use Python's built-in `json` module to serialise the output before writing:
+
+```python
+import pymupdf4llm
+import json
+from pathlib import Path
+
+data = pymupdf4llm.to_json("document.pdf")
+
+Path("output.json").write_text(
+    json.dumps(data, indent=2, ensure_ascii=False),
+    encoding="utf-8"
+)
+```
+
+`indent=2` produces human-readable JSON. For large documents where file size matters, omit it to write compact single-line JSON:
+
+```python
+Path("output.json").write_text(
+    json.dumps(data, ensure_ascii=False),
+    encoding="utf-8"
+)
+```
+
+---
+
+## Saving Plain Text
+
+```python
+import pymupdf4llm
+from pathlib import Path
+
+text = pymupdf4llm.to_text("document.pdf")
+Path("output.txt").write_text(text, encoding="utf-8")
+```
+
+---
+
+## Saving Page Chunks
+
+When using `page_chunks=True`, you'll typically want to save each page as a separate file. Use the page number from the chunk metadata to name each file:
+
+```python
+import pymupdf4llm
+from pathlib import Path
+
+output_dir = Path("output/pages")
+output_dir.mkdir(parents=True, exist_ok=True)
+
+chunks = pymupdf4llm.to_markdown("document.pdf", page_chunks=True)
+
+for chunk in chunks:
+    page_num = chunk["metadata"]["page"]
+    filepath = output_dir / f"page-{page_num}.md"
+    filepath.write_text(chunk["text"], encoding="utf-8")
+    print(f"Saved {filepath}")
+```
+
+---
+
+## Saving with a Matching Filename
+
+To derive the output filename from the input document automatically:
+
+```python
+import pymupdf4llm
+from pathlib import Path
+
+input_path = Path("reports/annual-report-2025.pdf")
+
+md_text = pymupdf4llm.to_markdown(str(input_path))
+
+output_path = input_path.with_suffix(".md")
+output_path.write_text(md_text, encoding="utf-8")
+
+print(f"Saved to {output_path}")
+# Saved to reports/annual-report-2025.md
+```
+
+`Path.with_suffix()` swaps the file extension cleanly, keeping the same directory and stem.
+
+---
+
+## Saving to a Different Directory
+
+To write output to a different folder while keeping the original filename:
+
+```python
+import pymupdf4llm
+from pathlib import Path
+
+input_path = Path("source/document.pdf")
+output_dir = Path("extracted")
+output_dir.mkdir(parents=True, exist_ok=True)
+
+md_text = pymupdf4llm.to_markdown(str(input_path))
+
+output_path = output_dir / input_path.with_suffix(".md").name
+output_path.write_text(md_text, encoding="utf-8")
+
+print(f"Saved to {output_path}")
+# Saved to extracted/document.md
+```
+
+---
+
+## Processing Multiple Files
+
+To extract and save output for an entire folder of PDFs:
+
+```python
+import pymupdf4llm
+from pathlib import Path
+
+input_dir = Path("documents/")
+output_dir = Path("extracted/")
+output_dir.mkdir(parents=True, exist_ok=True)
+
+pdf_files = list(input_dir.glob("*.pdf"))
+print(f"Found {len(pdf_files)} PDF(s)")
+
+for pdf_path in pdf_files:
+    print(f"Processing {pdf_path.name}...")
+    try:
+        md_text = pymupdf4llm.to_markdown(str(pdf_path))
+        output_path = output_dir / pdf_path.with_suffix(".md").name
+        output_path.write_text(md_text, encoding="utf-8")
+        print(f"  ✓ Saved to {output_path}")
+    except Exception as e:
+        print(f"  ✗ Failed: {e}")
+
+print("Done.")
+```
+
+---
+
+## Saving Images Alongside Markdown
+
+When `write_images=True` is used, images are written to disk automatically during extraction:
+
+```python
+import pymupdf4llm
+from pathlib import Path
+
+image_dir = Path("output/images")
+image_dir.mkdir(parents=True, exist_ok=True)
+
+md_text = pymupdf4llm.to_markdown(
+    "document.pdf",
+    write_images=True,
+    image_path=str(image_dir),
+    image_format="png",
+    dpi=150
+)
+
+Path("output/document.md").write_text(md_text, encoding="utf-8")
+```
+
+<Note>
+  Image paths in the Markdown output are relative to wherever the `.md` file is opened from. Keep your Markdown file and image directory in the same parent folder to ensure image links resolve correctly.
+</Note>
+
+---
+
+## File Format Summary
+
+| Output | Function | Extension | Write Method |
+|--------|----------|-----------|--------------|
+| Markdown | `to_markdown()` | `.md` | `Path.write_text()` |
+| JSON | `to_json()` | `.json` | `json.dumps()` + `Path.write_text()` |
+| Plain text | `to_text()` | `.txt` | `Path.write_text()` |
+| Page chunks | `to_markdown(page_chunks=True)` | `.md` per page | `Path.write_text()` in a loop |
+| Images | `to_markdown(write_images=True)` | `.png` / `.jpeg` | Written automatically |
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Extract Markdown" icon="markdown" href="/python/guides/extract-markdown">
+    Full walkthrough of to_markdown() with all common options.
+  </Card>
+  <Card title="Extract JSON" icon="brackets-curly" href="/python/guides/extract-json">
+    Bounding boxes and layout data for custom pipelines.
+  </Card>
+  <Card title="Extract Text" icon="align-left" href="/python/guides/extract-text">
+    Plain text extraction and whitespace handling.
+  </Card>
+  <Card title="Images & Graphics" icon="image" href="/python/guides/images-and-graphics">
+    Controlling image extraction, DPI, format, and output path.
+  </Card>
+</CardGroup>

@@ -1,0 +1,89 @@
+---
+title: Quickstart
+description: Convert a PDF to Markdown in a couple of lines of Python.
+---
+
+## Convert a PDF to Markdown
+
+```python
+import pymupdf4llm
+
+md_text = pymupdf4llm.to_markdown("my-document.pdf")
+print(md_text)
+```
+
+That's it. PyMuPDF4LLM reads every page, extracts content in reading order, and returns a single Markdown string.
+
+---
+
+## Save the Output to a File
+
+To write the result to a `.md` file, pass the output to Python's built-in `pathlib`:
+
+```python
+import pymupdf4llm
+from pathlib import Path
+
+md_text = pymupdf4llm.to_markdown("my-document.pdf")
+Path("output.md").write_text(md_text)
+```
+
+<Tip>
+  `write_text` automatically uses UTF-8 encoding when writing Markdown files, ensuring special characters and symbols are preserved correctly.
+</Tip>
+
+---
+
+## Process Specific Pages
+
+To extract only a subset of pages, pass a list of zero-based page numbers:
+
+```python
+md_text = pymupdf4llm.to_markdown("my-document.pdf", pages=[0, 1, 2])
+```
+
+---
+
+## Extract as Page Chunks
+
+For RAG pipelines and LLM ingestion, `page_chunks=True` returns a list of dictionaries — one per page — with the text and metadata:
+
+```python
+chunks = pymupdf4llm.to_markdown("my-document.pdf", page_chunks=True)
+
+for chunk in chunks:
+    print(chunk["metadata"]["page"])  # page number
+    print(chunk["text"])              # Markdown content
+```
+
+<Note>
+  Each chunk includes bounding box data, page dimensions, and document metadata. See [Page Chunking](/concepts/page-chunking) for the full schema.
+</Note>
+
+---
+
+## What Happens Under the Hood
+
+When you call `to_markdown()`, PyMuPDF4LLM:
+
+1. Opens the document with PyMuPDF
+2. Analyses the layout of each page — detecting columns, headings, tables, and images
+3. Reconstructs reading order from the visual structure
+4. Detects pages with no selectable text and triggers OCR automatically if the `ocr` dependency is installed
+5. Returns the result as a Markdown string or list of chunk dictionaries
+
+---
+
+## Next Steps
+
+<CardGroup cols={3}>
+  <Card title="Supported Formats" icon="file" href="/getting-started/supported-formats">
+    See every supported input and output format.
+  </Card>
+  <Card title="Output Formats" icon="brackets-curly" href="/concepts/output-formats">
+    Choose between Markdown, JSON, and plain text.
+  </Card>
+  <Card title="Saving Output" icon="floppy-disk" href="/guides/saving-output">
+    Write .md, .json, and .txt files with pathlib.
+  </Card>
+</CardGroup>

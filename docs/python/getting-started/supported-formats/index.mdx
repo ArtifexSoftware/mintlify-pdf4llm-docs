@@ -1,0 +1,103 @@
+---
+title: Supported Formats
+description: Input formats PyMuPDF4LLM can read, and output formats it can produce.
+---
+
+## Input Formats
+
+PyMuPDF4LLM can open and extract content from the following document types:
+
+| Format | Extensions | Notes |
+|--------|------------|-------|
+| PDF | `.pdf` | All versions, including encrypted and scanned |
+| XPS | `.xps` | Microsoft XML Paper Specification |
+| eBooks | `.epub`, `.mobi`, `.fb2` | Reflowable content is linearised per chapter |
+| Comic Books | `.cbz` | Image-based pages; OCR recommended |
+| Office Documents | `.doc`, `.docx`, `.ppt`, `.pptx`, `.xls`, `.xlsx`, `.hwp`, `.hwpx` | **PyMuPDF Pro only** — see below |
+
+<Note>
+  Standard PyMuPDF4LLM supports PDF, XPS, eBooks, and CBZ out of the box. Office format support requires a [PyMuPDF Pro](https://pymupdf.readthedocs.io/en/latest/pymupdf-pro) licence.
+</Note>
+
+### Office Documents (Pro Only)
+
+Processing Office files requires PyMuPDF Pro, which converts documents to PDF internally before extraction. This means all standard extraction options — layout analysis, OCR, page chunks — work identically on Office files.
+
+```python
+import pymupdf4llm
+
+# Requires PyMuPDF Pro licence
+md_text = pymupdf4llm.to_markdown("report.doc")
+```
+
+<Card title="PyMuPDF Pro" icon="lock" href="/integrations/pymupdf-pro">
+  Learn how to install and activate PyMuPDF Pro for Office document support.
+</Card>
+
+---
+
+## Output Formats
+
+PyMuPDF4LLM can produce output in four formats depending on your use case:
+
+| Format | Function | Best For |
+|--------|----------|----------|
+| Markdown | `to_markdown()` | LLM ingestion, RAG pipelines, readable docs |
+| JSON | `to_json()` | Custom pipelines needing bounding boxes and layout data |
+| Plain Text | `to_text()` | Simple text extraction, search indexing |
+| Images | `to_markdown(write_images=True)` | Preserving figures, charts, and diagrams |
+
+### Markdown
+
+The default and most commonly used output format. Text is extracted in reading order with headings, lists, tables, and inline formatting preserved where detectable.
+
+```python
+md_text = pymupdf4llm.to_markdown("document.pdf")
+```
+
+### JSON
+
+Returns structured data including bounding boxes, font information, and layout metadata for every block on the page. Useful for building custom post-processing pipelines.
+
+```python
+json_output = pymupdf4llm.to_json("document.pdf")
+```
+
+### Plain Text
+
+Strips all formatting and returns raw text content. Ideal when downstream tools do not need Markdown syntax.
+
+```python
+text = pymupdf4llm.to_text("document.pdf")
+```
+
+### Images
+
+When `write_images=True` is passed to `to_markdown()`, embedded images and graphics are extracted and saved to disk. Image paths are referenced inline in the Markdown output.
+
+```python
+md_text = pymupdf4llm.to_markdown("document.pdf", write_images=True, image_path="images/")
+```
+
+<Tip>
+  Not sure which output format to use? See [Output Formats](/concepts/output-formats) for a detailed comparison with examples.
+</Tip>
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Output Formats" icon="brackets-curly" href="/concepts/output-formats">
+    Detailed comparison of Markdown, JSON, and plain text output.
+  </Card>
+  <Card title="Extract Markdown" icon="markdown" href="/guides/extract-markdown">
+    Full walkthrough of `to_markdown()` with common options.
+  </Card>
+  <Card title="Images & Graphics" icon="image" href="/guides/images-and-graphics">
+    Controlling image extraction, DPI, and output path.
+  </Card>
+  <Card title="PyMuPDF Pro" icon="lock" href="/integrations/pymupdf-pro">
+    Unlock Office document support with PyMuPDF Pro.
+  </Card>
+</CardGroup>

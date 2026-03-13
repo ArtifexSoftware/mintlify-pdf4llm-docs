@@ -1,0 +1,217 @@
+---
+title: Page Selection
+description: Use the pages parameter to extract content from specific pages rather than processing an entire document.
+---
+
+## Overview
+
+By default, PyMuPDF4LLM processes every page in a document. The `pages` parameter lets you specify exactly which pages to extract — as a list of zero-based page indices. It is supported by `to_markdown()`, `to_json()`, and `to_text()`.
+
+```python
+import pymupdf4llm
+
+# Extract only the first three pages
+md_text = pymupdf4llm.to_markdown("document.pdf", pages=[0, 1, 2])
+```
+
+---
+
+## Zero-Based Indexing
+
+Page numbers in PyMuPDF4LLM are **zero-based** — the first page of a document is page `0`, the second is page `1`, and so on.
+
+| Document Page | `pages` Index |
+|---------------|---------------|
+| Page 1        | `0`           |
+| Page 2        | `1`           |
+| Page 10       | `9`           |
+| Last page     | `n - 1`       |
+
+<Warning>
+  Passing a page index that doesn't exist in the document will raise an error. Always check the document's page count (`doc.page_count`) before constructing a dynamic page list.
+</Warning>
+
+---
+
+## Common Patterns
+
+### First N Pages
+
+```python
+n = 5
+md_text = pymupdf4llm.to_markdown("document.pdf", pages=list(range(n)))
+```
+
+### Last N Pages
+
+```python
+import pymupdf
+
+doc = pymupdf.open("document.pdf")
+page_count = doc.page_count
+
+last_5 = list(range(page_count - 5, page_count))
+md_text = pymupdf4llm.to_markdown("document.pdf", pages=last_5)
+```
+
+### A Specific Range
+
+```python
+# Pages 10–19 (zero-based)
+pages = list(range(10, 20))
+md_text = pymupdf4llm.to_markdown("document.pdf", pages=pages)
+```
+
+### Non-Contiguous Pages
+
+```python
+# Cover page, table of contents, and appendix
+md_text = pymupdf4llm.to_markdown("document.pdf", pages=[0, 1, 47, 48, 49])
+```
+
+### Every Other Page
+
+```python
+# Even pages only (0, 2, 4, ...)
+md_text = pymupdf4llm.to_markdown("document.pdf", pages=list(range(0, 50, 2)))
+```
+
+---
+
+## Getting the Page Count
+
+Use PyMuPDF directly to inspect a document's page count before building your `pages` list:
+
+```python
+import pymupdf
+import pymupdf4llm
+
+doc = pymupdf.open("document.pdf")
+print(f"Total pages: {doc.page_count}")
+
+# Extract the second half of the document
+midpoint = doc.page_count // 2
+pages = list(range(midpoint, doc.page_count))
+
+md_text = pymupdf4llm.to_markdown("document.pdf", pages=pages)
+```
+
+---
+
+## Page Selection with Page Chunks
+
+When using `page_chunks=True`, the returned list will only contain chunks for the pages you specified. Chunk metadata preserves the original page number from the document:
+
+```python
+chunks = pymupdf4llm.to_markdown(
+    "document.pdf",
+    pages=[4, 5, 6],
+    page_chunks=True
+)
+
+for chunk in chunks:
+    print(f"Page {chunk['metadata']['page']}: {len(chunk['text'])} chars")
+# Page 4: 1842 chars
+# Page 5: 2103 chars
+# Page 6: 987 chars
+```
+
+<Tip>
+  The `page` value in chunk metadata reflects the **original document page number**, not the position in the returned list. Page 4 in the document is always reported as `4`, regardless of how many pages were skipped.
+</Tip>
+
+---
+
+## Page Selection with to_json() and to_text()
+
+The `pages` parameter works identically across all three extraction functions:
+
+```python
+# JSON output — specific pages only
+data = pymupdf4llm.to_json("document.pdf", pages=[0, 1, 2])
+
+# Plain text — specific pages only
+text = pymupdf4llm.to_text("document.pdf", pages=[0, 1, 2])
+```
+
+---
+
+## Processing a Document in Batches
+
+For very large documents, you may want to process pages in batches to manage memory usage:
+
+```python
+import pymupdf
+import pymupdf4llm
+from pathlib import Path
+
+doc = pymupdf.open("large-document.pdf")
+batch_size = 20
+results = []
+
+for start in range(0, doc.page_count, batch_size):
+    batch = list(range(start, min(start + batch_size, doc.page_count)))
+    print(f"Processing pages {batch[0]}–{batch[-1]}...")
+    chunk = pymupdf4llm.to_markdown(doc, pages=batch)
+    results.append(chunk)
+
+full_text = "\n\n".join(results)
+Path("output.md").write_text(full_text, encoding="utf-8")
+print(f"Done. {doc.page_count} pages processed.")
+```
+
+---
+
+## Skipping Blank or Cover Pages
+
+Combine page selection with a quick content check to skip pages that return no meaningful text:
+
+```python
+import pymupdf
+import pymupdf4llm
+
+doc = pymupdf.open("document.pdf")
+
+# Find pages that have selectable text
+non_blank = [
+    i for i in range(doc.page_count)
+    if doc[i].get_text().strip()
+]
+
+print(f"{len(non_blank)} of {doc.page_count} pages contain text")
+
+md_text = pymupdf4llm.to_markdown(doc, pages=non_blank)
+```
+
+---
+
+{/*
+## All Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `pages` | `list[int]` | All pages | Zero-based list of page indices to extract. Order is preserved. |
+*/}
+
+<Note>
+  The `pages` parameter is supported by `to_markdown()`, `to_json()`, and `to_text()`. For full API signatures see the [API Reference](/python/api/).
+</Note>
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Saving Output" icon="floppy-disk" href="/guides/saving-output">
+    Write extracted pages to .md, .json, and .txt files.
+  </Card>
+  <Card title="Extract Markdown" icon="markdown" href="/guides/extract-markdown">
+    Full walkthrough of to_markdown() with all common options.
+  </Card>
+  <Card title="Page Chunking" icon="layer-group" href="/concepts/page-chunking">
+    Per-page chunk structure and metadata schema.
+  </Card>
+  <Card title="Extract JSON" icon="brackets-curly" href="/guides/extract-json">
+    Bounding boxes and layout data for custom pipelines.
+  </Card>
+</CardGroup>

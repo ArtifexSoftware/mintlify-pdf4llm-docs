@@ -1,0 +1,84 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "PDF4LLM",
+  "colors": {
+    "primary": "#16A34A",
+    "light": "#07C983",
+    "dark": "#15803D"
+  },
+  "favicon": "/favicon.svg",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Python",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "python/getting-started/installation",
+              "python/getting-started/quickstart",
+              "python/getting-started/supported-formats"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "python/guides/extract-Markdown",
+              "python/guides/extract-JSON",
+              "python/guides/extract-Text",
+              "python/guides/images-and-graphics",
+              "python/guides/tables",
+              "python/guides/page-selection",
+              "python/guides/saving-output",
+              "python/guides/OCR"
+            ]
+          },
+          {
+            "group": "Integrations",
+            "pages": [
+              "python/integrations/LlamaIndex",
+              "python/integrations/LangChain",
+              "python/integrations/PyMuPDF-Pro"
+            ]
+          },
+          {
+            "group": "Reference",
+            "pages": [
+              "python/API/",
+              "python/reference/chunk-schema",
+              "python/reference/JSON-schema",
+              "python/reference/CHANGELOG"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": ".NET",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "dotnet/getting-started/installation",
+              "dotnet/getting-started/quickstart",
+              "dotnet/getting-started/supported-formats"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "JS/TS",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "dotnet/getting-started/installation",
+              "dotnet/getting-started/quickstart",
+              "dotnet/getting-started/supported-formats"
+            ]
+          }
+        ]
+      }
+    ]
+    }
+}

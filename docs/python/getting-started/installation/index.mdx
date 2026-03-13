@@ -1,0 +1,92 @@
+---
+title: Installation
+description: Install PyMuPDF4LLM and its optional dependencies.
+---
+
+## Requirements
+
+PyMuPDF4LLM requires **Python 3.8+**. It is built on top of [PyMuPDF](https://pymupdf.readthedocs.io/), which is installed automatically as a dependency.
+
+---
+
+## Basic Installation
+
+Install PyMuPDF4LLM from PyPI using pip:
+
+```bash
+pip install pymupdf4llm
+```
+
+This gives you full access to Markdown, JSON, and plain text extraction from document files.
+
+---
+
+## Optional Dependencies
+
+
+
+### OCR Support
+
+Enables automatic Optical Character Recognition for scanned or image-based PDFs. Requires [Tesseract](https://github.com/tesseract-ocr/tesseract) to be installed on your system alongside the Python bindings.
+
+```bash
+pip install pymupdf4llm[ocr]
+```
+
+Then install Tesseract and OpenCV at the system level:
+
+<Tabs>
+  <Tab title="macOS">
+    ```bash
+    brew install tesseract
+    pip install opencv-python-headless pytesseract
+    ```
+  </Tab>
+  <Tab title="Ubuntu / Debian">
+    ```bash
+    sudo apt install tesseract-ocr
+    pip install opencv-python-headless pytesseract
+    ```
+  </Tab>
+  <Tab title="Windows">
+    Download and install Tesseract from the [UB-Mannheim installer](https://github.com/UB-Mannheim/tesseract/wiki), then:
+    ```bash
+    pip install opencv-python-headless pytesseract
+    ```
+  </Tab>
+</Tabs>
+
+<Warning>
+  OCR is only triggered automatically when PyMuPDF4LLM detects that a page contains no selectable text. See [OCR](/concepts/ocr) for details on when and how to control this behaviour.
+</Warning>
+
+### All Optional Dependencies
+
+Install everything at once:
+
+```bash
+pip install pymupdf4llm[layout,ocr]
+```
+
+---
+
+## Verify Your Installation
+
+```python
+import pymupdf4llm
+
+print(pymupdf4llm.__version__)
+```
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="bolt" href="/python/getting-started/quickstart">
+    Convert your first PDF to Markdown in five lines.
+  </Card>
+  <Card title="Supported Formats" icon="file" href="/getting-started/supported-formats">
+    See all supported input and output formats.
+  </Card>
+</CardGroup>

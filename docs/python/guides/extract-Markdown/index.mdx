@@ -1,0 +1,153 @@
+---
+title: Extract Markdown
+description: A full walkthrough of to_markdown() with common options and use cases.
+---
+
+## Overview
+
+`to_markdown()` is the primary extraction function in PyMuPDF4LLM. It reads a document and returns its content as a Markdown string, preserving headings, lists, tables, code blocks, images, and reading order as closely as possible.
+
+```python
+import pymupdf4llm
+
+md_text = pymupdf4llm.to_markdown("document.pdf")
+```
+
+---
+
+## Common Options
+
+### Page Selection
+
+Extract only specific pages by passing a list of zero-based page indices:
+
+```python
+# Extract pages 1, 2, and 3 (zero-based: 0, 1, 2)
+md_text = pymupdf4llm.to_markdown("document.pdf", pages=[0, 1, 2])
+```
+
+Extract every other page by slicing the page list:
+
+```python
+# Extract every other page
+doc = pymupdf.open("document.pdf")
+pages = list(range(doc.page_count))
+every_other_page = pages[::2]
+
+md = pymupdf4llm.to_markdown(
+    doc,
+    pages=every_other_page
+)
+```
+
+<Tip>
+  For large documents, limiting extraction to the pages you need can dramatically reduce processing time — especially when OCR is involved.
+</Tip>
+
+### Page Chunks
+
+Return a list of per-page dictionaries instead of a single concatenated string. Each chunk includes the page's Markdown text and associated metadata:
+
+```python
+chunks = pymupdf4llm.to_markdown("document.pdf", page_chunks=True)
+
+for chunk in chunks:
+    print(f"Page {chunk['metadata']['page']}")
+    print(chunk["text"])
+```
+
+This is the recommended mode for RAG pipelines and LLM ingestion workflows. See [Page Chunking](/concepts/page-chunking) for the full chunk schema.
+
+
+### Headers and Footers
+
+PyMuPDF4LLM can detect and exclude repeating page headers and footers to keep the output clean:
+
+```python
+md_text = pymupdf4llm.to_markdown("document.pdf", header=False, footer=False)
+```
+
+### Images
+
+To extract embedded images and reference them inline in the Markdown output:
+
+```python
+md_text = pymupdf4llm.to_markdown(
+    "document.pdf",
+    write_images=True,
+    image_path="assets/images/",
+    image_format="png",
+    dpi=150
+)
+```
+
+Image references are embedded as standard Markdown image syntax:
+
+```markdown
+![](assets/images/page-1-image-0.png)
+```
+
+See [Images & Graphics](/guides/images-and-graphics) for a full breakdown of image options.
+
+### Tables
+
+Table extraction is enabled by default. PyMuPDF4LLM renders detected tables as GitHub-flavoured Markdown tables:
+
+```markdown
+| Column A | Column B | Column C |
+|----------|----------|----------|
+| Value 1  | Value 2  | Value 3  |
+```
+
+See [Tables](/guides/tables) for more detail on table extraction and edge cases.
+
+---
+
+## Full Example
+
+A more complete call combining several options:
+
+```python
+import pymupdf4llm
+from pathlib import Path
+
+chunks = pymupdf4llm.to_markdown(
+    "report.pdf",
+    pages=[0, 1, 2, 3, 4],   # first five pages only
+    page_chunks=True,          # return per-page dictionaries
+    write_images=True,         # extract images to disk
+    image_path="assets/",      # image output directory
+    image_format="png",        # image format
+    dpi=200                    # image resolution
+)
+
+# Save each page as a separate Markdown file
+for chunk in chunks:
+    page_num = chunk["metadata"]["page"]
+    Path(f"output/page-{page_num}.md").write_text(chunk["text"], encoding="utf-8")
+```
+
+---
+
+<Note>
+  For the full API signature including all parameters and return types, see the [`to_markdown()` API reference](/python/api/to_markdown).
+</Note>
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Extract JSON" icon="brackets-curly" href="/guides/extract-json">
+    Bounding boxes and layout data for custom pipelines.
+  </Card>
+  <Card title="Page Chunking" icon="layer-group" href="/concepts/page-chunking">
+    Full schema for page_chunks=True output.
+  </Card>
+  <Card title="Tables" icon="table" href="/guides/tables">
+    Table extraction and Markdown rendering.
+  </Card>
+  <Card title="Saving Output" icon="floppy-disk" href="/guides/saving-output">
+    Write .md files with pathlib.
+  </Card>
+</CardGroup>

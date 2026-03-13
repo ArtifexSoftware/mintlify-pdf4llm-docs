@@ -1,0 +1,168 @@
+---
+title: Tables
+description: How PyMuPDF4LLM detects, extracts, and renders tables as Markdown — and how to access raw table data for custom pipelines.
+---
+
+## Overview
+
+PyMuPDF4LLM includes automatic table detection. When a table is found on a page, it is extracted and rendered as a GitHub-flavoured Markdown table in `to_markdown()` output, or returned as a structured block in `to_json()` output.
+
+Table extraction is enabled by default — no configuration required.
+
+```python
+import pymupdf4llm
+
+md_text = pymupdf4llm.to_markdown("document.pdf")
+print(md_text)
+```
+
+A detected table will appear in the Markdown output like this:
+
+```markdown
+| A | B | C | D |
+|---|---|---|---|
+| 0 | 1 | 2 | 3 |
+| 0 | 1 | 2 | 3 |
+```
+
+---
+
+## How Table Detection Works
+
+PyMuPDF4LLM detects tables by analysing the visual structure of the page — looking for ruled lines, column alignment, and consistent row spacing. It does not rely on tagged PDF structure, so it works on both tagged and untagged PDFs.
+
+Detection handles:
+
+- Tables with explicit borders (ruled lines on all sides)
+- Tables with partial borders (header rule only, or row dividers only)
+- Borderless tables detected through column alignment and whitespace
+- Multi-line cell content
+- Merged header cells
+
+<Note>
+  Complex nested tables or tables that span multiple pages may not be detected perfectly in all cases. If a table is not rendering as expected, see [Troubleshooting](#troubleshooting) below.
+</Note>
+
+---
+
+## Accessing Raw Table Data
+
+When using `to_json()`, detected tables are returned as `"table"` blocks with full cell-level data including bounding boxes:
+
+```python
+json_str = pymupdf4llm.to_json("document.pdf")
+
+data = json.loads(json_str)
+
+for page_num, page in enumerate(data.get("pages", [])):
+    print(f"\nPage {page_num}")
+
+    for block in page.get("boxes", []):
+        if block["boxclass"] == "table":
+            print(f"Table details: {block['table']}")
+
+```
+
+### Table Block Structure
+
+```json
+{
+  "boxclass": "table",
+  "table":
+    {
+      "bbox": ["x0","y0","x1","y1"], 
+      "row_count": 3, 
+      "col_count": 4, 
+      "cells": [], 
+      "extract": [
+          ["A", "B", "C", "D"], 
+          ["A1", "B1", "C1", "D1"],
+          ["A2", "B2", "C2", "D2"]
+        ], 
+        "markdown": "|A|B|C|D|\n|---|---|---|---|\n|A1|B1|C1|D1|\n|A2|B2|C2|D2|\n\n"
+    }
+}
+```
+
+{/*
+TODO
+## Extracting Tables to CSV
+
+
+
+
+## Extracting Tables to a DataFrame
+
+
+
+---
+
+## Multi-Page Tables
+
+Tables that span across page boundaries are not automatically merged. Each page's fragment is returned as a separate table block. To stitch them together, match the column count and append rows manually:
+
+```python
+data = pymupdf4llm.to_json("report.pdf")
+
+all_tables = [
+    (page["page"], block)
+    for page in data
+    for block in page["blocks"]
+    if block["type"] == "table"
+]
+
+# Merge consecutive tables with the same column count
+merged_rows = []
+prev_col_count = None
+
+for page_num, table in all_tables:
+    col_count = max(len(row["cells"]) for row in table["rows"])
+    if col_count == prev_col_count:
+        # Skip header row on continuation pages
+        for row in table["rows"][1:]:
+            merged_rows.append([cell["text"] for cell in row["cells"]])
+    else:
+        for row in table["rows"]:
+            merged_rows.append([cell["text"] for cell in row["cells"]])
+    prev_col_count = col_count
+
+print(f"Merged table: {len(merged_rows)} rows")
+```
+*/}
+---
+
+## Troubleshooting
+
+### Table Not Detected
+
+If a table is being returned as plain text rather than a table block:
+
+- The table may be borderless with inconsistent spacing — ensure that `use_layout=True` to improve detection
+- The table may be an image (scanned) — enable OCR and check whether cells are being recognised
+- The table may be very small or have only one column
+
+### Incorrect Column Splitting
+
+If columns are being merged or split incorrectly, the table may have irregular spacing. Accessing the raw data via `to_json()` and post-processing it manually often gives better results than relying on the Markdown rendering.
+
+---
+
+<Note>
+  For the full API signature, see the [`to_markdown()` API reference](/python/api/to_markdown) and [`to_json()` API reference](/python/api/to_json).
+</Note>
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Extract JSON" icon="brackets-curly" href="/python/guides/extract-json">
+    Full guide to working with the JSON output format.
+  </Card>
+  <Card title="Extract Markdown" icon="markdown" href="/python/guides/extract-markdown">
+    Markdown extraction with all common options.
+  </Card>
+  <Card title="JSON Schema" icon="file-code" href="/python/reference/json-schema">
+    Complete field reference for the JSON output structure.
+  </Card>
+</CardGroup>

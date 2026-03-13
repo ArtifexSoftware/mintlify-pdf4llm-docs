@@ -1,0 +1,220 @@
+---
+title: Images & Graphics
+description: Extract embedded images and vector graphics from documents — controlling output path, DPI, format, and whether images are written to disk or embedded inline.
+---
+
+## Overview
+
+PyMuPDF4LLM can extract images and graphics from documents in two ways: writing them as files to disk, or embedding them as base64-encoded data in the JSON output. When images are written to disk, their paths are referenced inline in the Markdown output using standard image syntax.
+
+Image extraction is disabled by default. To enable it, pass `write_images=True` to `to_markdown()`.
+
+```python
+import pymupdf4llm
+
+md_text = pymupdf4llm.to_markdown("document.pdf", write_images=True)
+```
+
+---
+
+## Writing Images to Disk
+
+When `write_images=True` is set, each image found in the document is saved as an individual file. The path to each image is embedded in the Markdown output:
+
+```markdown
+![](assets/images/page-1-image-0.png)
+```
+
+By default, images are written to the current working directory. Use `image_path` to specify a different output directory:
+
+```python
+md_text = pymupdf4llm.to_markdown(
+    "document.pdf",
+    write_images=True,
+    image_path="assets/images/"
+)
+```
+
+<Note>
+  PyMuPDF4LLM will create the output directory automatically.
+</Note>
+
+
+---
+
+## Image Format
+
+Use the `image_format` parameter to control the file format of extracted images. Supported formats are `'png'`, `'pnm'`, `'pgm'`, `'ppm'`, `'pbm'`, `'pam'`, `'psd'`, `'ps'`, `'jpg'`, `'jpeg'`:
+
+```python
+md_text = pymupdf4llm.to_markdown(
+    "document.pdf",
+    write_images=True,
+    image_path="assets/images/",
+    image_format="jpeg"
+)
+```
+
+| Format | Best For | Notes |
+|--------|----------|-------|
+| `"png"` | Diagrams, screenshots, charts | Lossless. Larger file size. Default. |
+| `"jpeg"` | Photographs, scanned pages | Lossy. Smaller file size. |
+
+
+<Tip>
+  Use `"png"` when image fidelity matters — for example, when extracting charts, diagrams, or figures that contain readable text. Use `"jpeg"` for photographic content where file size is a concern.
+</Tip>
+
+---
+
+## DPI and Resolution
+
+The `dpi` parameter controls the resolution at which raster images are rendered. The default is `150` DPI, which is a good balance between file size and clarity.
+
+```python
+md_text = pymupdf4llm.to_markdown(
+    "document.pdf",
+    write_images=True,
+    dpi=300  # higher quality, larger file size
+)
+```
+
+| DPI | Use Case |
+|-----|----------|
+| `72` | Low-quality preview thumbnails |
+| `150` | Standard extraction (default) |
+| `300` | Print-quality or OCR pre-processing |
+
+<Warning>
+  High DPI values significantly increase both file sizes and processing time, especially for documents with many images. Only increase DPI if you have a specific need for higher resolution.
+</Warning>
+
+---
+
+## Embedded vs. File Images
+
+### File Images (Markdown)
+
+When using `to_markdown()` with `write_images=True`, images are written to disk and referenced by path in the Markdown:
+
+```python
+md_text = pymupdf4llm.to_markdown(
+    "document.pdf",
+    write_images=True,
+    image_path="assets/",
+    image_format="png",
+    dpi=150
+)
+```
+
+The Markdown output will contain image references like:
+
+```markdown
+Some preceding text.
+
+![](assets/page-1-image-0.png)
+
+Some following text.
+```
+
+### Embedded Images
+
+When using `to_markdown()` or `to_json()`, images can be included directly in the output as base64-encoded byte strings by setting the `embed_images` parameter to `True`— no files are written to disk:
+
+```python
+import pymupdf4llm
+
+data = pymupdf4llm.to_json("document.pdf", write_images=True, embed_images=True)
+```
+
+For exmaple the image block in JSON output will be presented as follows:
+
+
+```json
+{
+   "boxes": 
+  [
+    {
+      "x0": 72.0, 
+      "y0": 72.0, 
+      "x1": 523.2999877929688, 
+      "y1": 418.2499694824219, 
+      "boxclass": "picture", 
+      "image": "<base64-encoded-string>"
+    }
+  ]
+}
+```
+
+---
+
+## Vector Graphics
+
+PyMuPDF4LLM detects vector drawings — lines, shapes, filled regions and can rasterise them to image files by default, but their bounding boxes are preserved so you can identify and handle them in your pipeline.
+
+---
+
+## Image File Naming
+
+Extracted image files are named automatically using the pattern:
+
+```
+filename-{page_number}-{image_index}.{ext}
+```
+
+For example, the second image on page 3 for a document called `document.pdf` would be saved as:
+
+```
+document-0003-01.png
+```
+
+Page numbers are zero-based and indices increment per page, resetting on each new page.
+
+---
+
+## Full Example
+
+```python
+import pymupdf4llm
+
+# Extract Markdown with images saved to disk
+md_text = pymupdf4llm.to_markdown(
+    "report.pdf",
+    write_images=True,
+    image_path="output/images/",
+    image_format="png",
+    dpi=150
+)
+
+# Save the Markdown file
+Path("output/report.md").write_text(md_text, encoding="utf-8")
+
+print("Done.")
+print(f"Images saved to: output/images/")
+print(f"Markdown saved to: output/report.md")
+```
+
+---
+
+<Note>
+  For the full API signature, see the [`to_markdown()` API reference](python/api/to_markdown) & [`to_json()` API reference](python/api/to_json).
+</Note>
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Extract Markdown" icon="markdown" href="/python/guides/extract-markdown">
+    Full walkthrough of to_markdown() with all common options.
+  </Card>
+  <Card title="Extract JSON" icon="brackets-curly" href="/python/guides/extract-json">
+    Access embedded image data via the JSON output.
+  </Card>
+  <Card title="Tables" icon="table" href="/python/guides/tables">
+    Extract and render tables found alongside images.
+  </Card>
+  <Card title="Saving Output" icon="floppy-disk" href="/python/guides/saving-output">
+    Write Markdown and image files together with pathlib.
+  </Card>
+</CardGroup>
