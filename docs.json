@@ -101,5 +101,17 @@
                 "items":[{"label":"© Artifex Software, Inc. 2026", "href":"https://artifex.com"}]
             }
         ]
-    }
+    },
+    "redirects": [
+        {
+            "source": "/python/API/",
+            "destination": "/python/api/"
+        },
+        {
+            "source": "python/API/:slug*",
+            "destination": "/python/api/:slug*"
+        }
+    ]
+    
+    
 }
