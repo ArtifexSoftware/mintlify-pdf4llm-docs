@@ -110,6 +110,10 @@
         {
             "source": "python/API/:slug*",
             "destination": "/python/api/:slug*"
+        },
+        {
+            "source": "python/Changelog/",
+            "destination": "/python/changelog/"
         }
     ]
     
