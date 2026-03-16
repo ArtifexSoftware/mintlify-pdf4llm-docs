@@ -78,7 +78,6 @@
           {
             "group": "Integrations",
             "pages": [
-              "python/integrations/LlamaIndex",
               "python/integrations/LangChain",
               "python/integrations/PyMuPDF-Pro"
             ]
@@ -90,32 +89,6 @@
               "python/reference/chunk-schema",
               "python/reference/JSON-schema",
               "python/reference/Changelog"
-            ]
-          }
-        ]
-      },
-      {
-        "tab": ".NET",
-        "groups": [
-          {
-            "group": "Getting Started",
-            "pages": [
-              "dotnet/getting-started/installation",
-              "dotnet/getting-started/quickstart",
-              "dotnet/getting-started/supported-formats"
-            ]
-          }
-        ]
-      },
-      {
-        "tab": "JS/TS",
-        "groups": [
-          {
-            "group": "Getting Started",
-            "pages": [
-              "dotnet/getting-started/installation",
-              "dotnet/getting-started/quickstart",
-              "dotnet/getting-started/supported-formats"
             ]
           }
         ]
