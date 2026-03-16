@@ -8,6 +8,17 @@
     "light": "#ff4e01",
     "dark": "#ff4e01"
   },
+ "contextual": {
+    "options": [
+        "copy",
+        "assistant",
+        "view",
+        "chatgpt",
+        "claude",
+        "grok",
+        "cursor"
+        ]
+  },
   "favicon": "/favicon.svg",
   "navigation": {
     "global": {
@@ -31,6 +42,11 @@
           "anchor": "Discord",
           "href": "https://discord.gg/TaHAjaEVWS",
           "icon": "discord"
+        },
+        {
+          "anchor": "Forum",
+          "href": "https://forum.mupdf.com",
+          "icon": "people-group"
         }
       ]
     },
@@ -109,7 +125,7 @@
     "footer": {
         "links": [
             {
-                "items":[{"label":"© Artifex 2025", "href":"https://artifex.com"}]
+                "items":[{"label":"© Artifex Software, Inc. 2026", "href":"https://artifex.com"}]
             }
         ]
     }
