@@ -1,0 +1,6 @@
+/* Widen the Mintlify footer text/links area */
+footer.advanced-footer .text-sm {
+  max-width: 1280px; /* increase from the default 984px */
+  width: 100%;
+  text-align: right; /* align text to the right */
+}
