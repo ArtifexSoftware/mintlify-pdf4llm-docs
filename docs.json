@@ -112,8 +112,8 @@
             "destination": "/python/api/:slug*"
         },
         {
-            "source": "python/Changelog/",
-            "destination": "/python/changelog/"
+            "source": "python/reference/Changelog/",
+            "destination": "/python/reference/changelog/"
         }
     ]
     
