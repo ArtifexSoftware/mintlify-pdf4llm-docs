@@ -1,6 +1,6 @@
 # PDF4LLM Documentation
 
-These docs aim to cover the 4LLM suitr of software from Artifex starting with PyMuPDF4LLM and branching out as we add more integrations.
+These docs aim to cover the 4LLM suite of software from Artifex starting with PyMuPDF4LLM and branching out as we add more integrations.
 
 ## AI-assisted writing
 
