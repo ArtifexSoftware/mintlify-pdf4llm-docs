@@ -108,8 +108,16 @@
             "destination": "/python/api/"
         },
         {
-            "source": "python/API/:slug*",
+            "source": "/python/API/:slug*",
             "destination": "/python/api/:slug*"
+        },
+        {
+            "source": "/python/api/LlamaMarkdownReader",
+            "destination": "/python/api/llamamarkdownreader"
+        },
+        {
+            "source": "/python/api/TocHeaders",
+            "destination": "/python/api/tocheaders"
         },
         {
             "source": "python/reference/Changelog/",
