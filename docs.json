@@ -120,6 +120,10 @@
             "destination": "/python/api/tocheaders"
         },
         {
+            "source": "/python/api/IdentifyHeaders",
+            "destination": "/python/api/identifyheaders"
+        },
+        {
             "source": "python/reference/Changelog/",
             "destination": "/python/reference/changelog/"
         }
