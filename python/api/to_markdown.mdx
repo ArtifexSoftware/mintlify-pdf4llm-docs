@@ -257,7 +257,7 @@ pymupdf4llm.to_markdown(doc: pymupdf.Document | str, *,
 |-----------|-----------|
 | `FileNotFoundError` | `doc` is a path string that does not exist |
 | `ValueError` | An index in `pages` is out of range for the document |
-| `ImportError` | `use_layout=True` but the `layout` dependency is not installed |
+| `ImportError` | [`use_layout(True)`](/python/api/use_layout) but the `layout` dependency is not installed |
 | `ImportError` | `ocr=True` or `force_ocr=True` but the `ocr` dependency is not installed |
 
 ---

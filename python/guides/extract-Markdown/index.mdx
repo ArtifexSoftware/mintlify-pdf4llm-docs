@@ -56,7 +56,7 @@ for chunk in chunks:
     print(chunk["text"])
 ```
 
-This is the recommended mode for RAG pipelines and LLM ingestion workflows. See [Page Chunking](/concepts/page-chunking) for the full chunk schema.
+This is the recommended mode for RAG pipelines and LLM ingestion workflows. See [Chunk Schema](/python/reference/chunk-schema) for more details on the structure of the returned dictionaries.
 
 
 ### Headers and Footers
@@ -87,7 +87,7 @@ Image references are embedded as standard Markdown image syntax:
 ![](assets/images/page-1-image-0.png)
 ```
 
-See [Images & Graphics](/guides/images-and-graphics) for a full breakdown of image options.
+See [Images & Graphics](/python/guides/images-and-graphics) for a full breakdown of image options.
 
 ### Tables
 
@@ -99,7 +99,7 @@ Table extraction is enabled by default. PyMuPDF4LLM renders detected tables as G
 | Value 1  | Value 2  | Value 3  |
 ```
 
-See [Tables](/guides/tables) for more detail on table extraction and edge cases.
+See [Tables](/python/guides/tables) for more detail on table extraction and edge cases.
 
 ---
 

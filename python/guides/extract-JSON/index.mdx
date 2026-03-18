@@ -75,33 +75,18 @@ The return value is a list of page objects — one per page. Each page contains 
 Every block, line, and span carries a `bbox` field — a four-element list `[x0, y0, x1, y1]` describing the rectangle that bounds that element.
 
 ```python
-data = pymupdf4llm.to_json("document.pdf")
+import json
+
+json_str = pymupdf4llm.to_json("document.pdf")
+
+data = json.loads(json_str)
 
 for page in data:
-    print(f"--- Page {page['page']} ---")
-    for block in page["blocks"]:
-        if block["type"] == "text":
-            x0, y0, x1, y1 = block["bbox"]
-            print(f"Text block at ({x0:.1f}, {y0:.1f}) → ({x1:.1f}, {y1:.1f})")
-```
+    print(f"\nPage {page_num}")
 
-This is useful for spatial filtering — for example, extracting only content within the main body area of a page and ignoring margins:
+    for block in page.get("boxes", []):
+        print(f"Block at ({block['x0']:.1f}, {block['y0']:.1f}) → ({block['x1']:.1f}, {block['y1']:.1f})")
 
-```python
-def in_body(bbox, page_width, page_height, margin=72):
-    x0, y0, x1, y1 = bbox
-    return (
-        x0 >= margin and
-        x1 <= page_width - margin and
-        y0 >= margin and
-        y1 <= page_height - margin
-    )
-
-for page in data:
-    body_blocks = [
-        b for b in page["blocks"]
-        if in_body(b["bbox"], page["width"], page["height"])
-    ]
 ```
 
 ---
@@ -125,7 +110,7 @@ for page in data:
 
 ### Font Flags Reference
 
-The `flags` field is a bitmask encoding text styling:
+The `flags` field is a bitmask encoding font properties:
 
 | Bit | Value | Meaning |
 |-----|-------|---------|

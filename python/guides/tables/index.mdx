@@ -40,7 +40,7 @@ Detection handles:
 - Merged header cells
 
 <Note>
-  Complex nested tables or tables that span multiple pages may not be detected perfectly in all cases. If a table is not rendering as expected, see [Troubleshooting](#troubleshooting) below.
+  Tables that span multiple pages may not be detected perfectly in all cases. If a table is not rendering as expected, see [Troubleshooting](#troubleshooting) below.
 </Note>
 
 ---
@@ -137,7 +137,7 @@ print(f"Merged table: {len(merged_rows)} rows")
 
 If a table is being returned as plain text rather than a table block:
 
-- The table may be borderless with inconsistent spacing — ensure that `use_layout=True` to improve detection
+- The table may be borderless with inconsistent spacing — ensure that [`use_layout(True)`](/python/api/use_layout) is enabled to improve detection
 - The table may be an image (scanned) — enable OCR and check whether cells are being recognised
 - The table may be very small or have only one column
 
