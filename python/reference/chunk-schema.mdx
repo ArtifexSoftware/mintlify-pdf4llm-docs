@@ -13,6 +13,10 @@ When `page_chunks=True` is passed to [to_markdown()](../api/to_markdown) or [to_
   className="mx-auto mb-0"
 />
 
+### Iterating over chunks
+
+To quickly see the structure of each chunk, you can iterate over the list and print the keys of each dictionary:
+
 ```python
 chunks = pymupdf4llm.to_markdown("document.pdf", page_chunks=True)
  
@@ -22,7 +26,20 @@ for chunk in chunks:
         print("----")
         print (chunk[key])
 ```
- 
+
+
+### Why use page chunks?
+
+Page chunking is the recommended approach for any pipeline that needs to process, search, or embed a PDF's content — rather than working with one giant string, you get a structured list where each page is a self-contained unit carrying both its text and the metadata needed to make that text useful. 
+
+This matters most in RAG applications, where you need to attach source information (file path, page number, document title) to every embedded chunk so that retrieved passages can be traced back to their origin. 
+
+The layout data in `page_boxes` adds another layer of utility — you can filter out headers, footers, and captions before embedding, or treat tables and body text differently depending on your retrieval strategy. 
+
+Rather than post-processing a flat markdown string and trying to guess where page boundaries or section headings fall, chunking gives you that structure for free, directly from the PDF's own layout engine.
+
+**Example: Extracting page numbers and first 100 characters of text from each chunk**
+
 ```python
 import pymupdf4llm
  
@@ -50,7 +67,7 @@ Each item in the returned list is a dictionary with four top-level keys:
 ```
 ---
 
-## `metadata`
+### `metadata`
 
 Contains both document-level properties (consistent across all chunks) and page-level properties (unique per chunk).
 
@@ -120,7 +137,7 @@ chunk["metadata"] = {
   The 1-based page number this chunk represents.
 </ResponseField>
 
-### Usage example
+#### Usage example
 
 ```python
 for chunk in chunks:
@@ -130,7 +147,7 @@ for chunk in chunks:
 
 ---
 
-## `toc_items`
+### `toc_items`
 
 A list of Table of Contents entries that fall on this page. Each entry is a list in the format `[level, title, page_number]`.
 
@@ -158,7 +175,7 @@ chunk["toc_items"] = [
   `toc_items` is an empty list `[]` for pages that have no TOC entries, or for documents without a Table of Contents. Always check before iterating.
 </Note>
 
-### Usage example
+#### Usage example
 
 ```python
 for chunk in chunks:
@@ -169,7 +186,7 @@ for chunk in chunks:
 
 ---
 
-## `page_boxes`
+### `page_boxes`
 
 A list of layout elements detected on the page by the layout analysis engine. Each element describes a discrete visual block — a paragraph, heading, image, table, list item, and so on — along with its position on the page.
 
@@ -207,7 +224,7 @@ chunk["page_boxes"] = [
   Character offsets into the page's `text` string: `(start, end)`. Use these to slice the exact text that corresponds to this layout element.
 </ResponseField>
 
-### Box classes
+##### Box classes
 
 | Class | Description |
 |-------|-------------|
@@ -220,7 +237,7 @@ chunk["page_boxes"] = [
 | `page-footer` | Footer content at the bottom of the page |
 | `page-header` | Header content at the top of the page |
 
-### Usage example — extract only headings
+#### Usage example — extract only headings
 
 ```python
 for chunk in chunks:
@@ -234,7 +251,7 @@ for chunk in chunks:
             print(heading_text)
 ```
 
-### Usage example — get bounding boxes for all images
+#### Usage example — get bounding boxes for all images
 
 ```python
 for chunk in chunks:
@@ -246,7 +263,7 @@ for chunk in chunks:
 
 ---
 
-## `text`
+### `text`
 
 The full markdown-formatted text content of the page as a single string. Headings, bold text, tables, and list items are represented using standard markdown syntax.
 
@@ -270,7 +287,7 @@ _Large Language Model_ inference for datacenter AI...
   The character offsets in each `page_boxes[n]["pos"]` correspond directly to positions within this string, so you can use them to precisely extract the text for any layout element.
 </Note>
 
-### Usage example — slice text by layout element
+#### Usage example — slice text by layout element
 
 ```python
 chunk = chunks[0]
