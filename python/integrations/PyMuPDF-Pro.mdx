@@ -176,7 +176,6 @@ pymupdf.pro.unlock()
 chunks = pymupdf4llm.to_markdown(
     "annual-report.docx",
     page_chunks=True,
-    use_layout=True,
     write_images=True,
     image_path="output/images/",
     image_format="png",
@@ -244,9 +243,6 @@ Function `pymupdf.pro.get_fontpath()` returns a tuple of all font directories us
 ## Next Steps
 
 <CardGroup cols={2}>
-  <Card title="LlamaIndex" icon="database" href="/python/integrations/llamaindex">
-    Office documents with LlamaIndex.
-  </Card>
   <Card title="LangChain" icon="link" href="/python/integrations/langchain">
     Load Office documents into LangChain pipelines.
   </Card>

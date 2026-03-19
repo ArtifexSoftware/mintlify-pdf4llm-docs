@@ -65,7 +65,7 @@ The three primary extraction functions share a common interface — they all acc
 | Function / Class | Returns | Key Parameters |
 |------------------|---------|----------------|
 | `to_markdown()` | `str` or `list[dict]` | `pages`, `page_chunks`, `use_layout`, `write_images` |
-| `to_json()` | `list[dict]` | `pages`, `extract_tables`, `margins` |
+| `to_json()` | `list[dict]` | `pages`, `margins` |
 | `to_text()` | `str` or `list[dict]` | `pages`, `page_chunks`, `page_separator` |
 | `use_layout()` | `list[dict]` | `pages`, `margins` |
 | `get_key_values()` | `list[dict]` | `pages`, `force_ocr` |
@@ -74,17 +74,3 @@ The three primary extraction functions share a common interface — they all acc
 | `TocHeaders.headers` | `list[dict]` | `body_limit` |
 | `version()` | `dict` | — |
 
----
-
-## Common Parameters
-
-All extraction functions share the following parameters:
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `doc` | `str \| pymupdf.Document` | — | Document path or open instance |
-| `pages` | `list[int]` | `None` (all) | Zero-based page indices to extract |
-| `margins` | `tuple[float, float, float, float]` | `(0,0,0,0)` | Crop margins in PDF points |
-| `force_ocr` | `bool` | `False` | Force OCR on all pages |
-| `ocr` | `bool` | `True` | Enable automatic OCR on image-only pages |
-| `ocr_adaptor` | `OcrAdaptor \| None` | `None` | Custom OCR engine |

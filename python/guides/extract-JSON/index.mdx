@@ -23,50 +23,11 @@ data = pymupdf4llm.to_json("document.pdf")
 
 ## Output Structure
 
-The return value is a list of page objects — one per page. Each page contains a list of blocks, and each block contains one or more lines or cells depending on its type.
+The return value is a list of page objects — one per page and file metadata. See the [JSON Schema](/python/reference/json-schema) for a full field reference. 
 
-```json
-[
-  {
-    "page": 0,
-    "width": 595.0,
-    "height": 842.0,
-    "blocks": [
-      {
-        "type": "text",
-        "bbox": [72.0, 91.4, 523.0, 110.2],
-        "lines": [
-          {
-            "bbox": [72.0, 91.4, 523.0, 110.2],
-            "spans": [
-              {
-                "text": "Introduction",
-                "bbox": [72.0, 91.4, 201.3, 110.2],
-                "font": "Helvetica-Bold",
-                "size": 16.0,
-                "color": "#000000",
-                "flags": 20
-              }
-            ]
-          }
-        ]
-      },
-      {
-        "type": "image",
-        "bbox": [72.0, 200.0, 400.0, 450.0],
-        "width": 328,
-        "height": 250,
-        "ext": "png",
-        "image": "<base64-encoded-bytes>"
-      }
-    ]
-  }
-]
-```
 
-<Note>
-  Coordinates are in PDF points (1 point = 1/72 inch). The origin `(0, 0)` is the **top-left** corner of the page.
-</Note>
+
+
 
 ---
 
@@ -78,7 +39,6 @@ Every block, line, and span carries a `bbox` field — a four-element list `[x0,
 import json
 
 json_str = pymupdf4llm.to_json("document.pdf")
-
 data = json.loads(json_str)
 
 for page in data:
@@ -96,16 +56,22 @@ for page in data:
 Spans are the most granular unit in the JSON output. Each span represents a run of text that shares the same font, size, and color. This lets you identify headings, bold text, and other styled elements programmatically:
 
 ```python
-for page in data:
-    for block in page["blocks"]:
-        if block["type"] != "text":
-            continue
-        for line in block["lines"]:
-            for span in line["spans"]:
-                if span["size"] >= 14:
-                    print(f"Heading candidate: {span['text']!r} (size {span['size']})")
-                if span["flags"] & 2**4:  # bold flag
-                    print(f"Bold text: {span['text']!r}")
+import json
+
+json_str = pymupdf4llm.to_json("document.pdf")
+data = json.loads(json_str)
+
+for page_num, page in enumerate(data.get("pages", [])):
+    for block in page.get("boxes", []):
+        if block["boxclass"] == "text":
+            textlines = block["textlines"]
+            for line in textlines:
+                for span in line["spans"]:
+                    print(span)
+                    if span["size"] >= 14:
+                        print(f"Heading candidate: {span['text']!r} (size {span['size']})")
+                    if span["flags"] & 2**4:  # bold flag
+                        print(f"Bold text: {span['text']!r}")
 ```
 
 ### Font Flags Reference
@@ -247,7 +213,7 @@ So the extracted styling in plain English is:
 
 ## Page Selection
 
-As with `to_markdown()`, you can limit extraction to specific pages:
+As with [`to_markdown()`](/python/api/to_markdown), you can limit extraction to specific pages:
 
 ```python
 data = pymupdf4llm.to_json("document.pdf", pages=[0, 1, 2])
@@ -283,7 +249,6 @@ Path("output.json").write_text(
 ```python
 import pymupdf4llm
 import json
-from pathlib import Path
 
 # parse the file 
 json_str = pymupdf4llm.to_json("document.pdf")
@@ -305,17 +270,18 @@ for page_num, page in enumerate(data.get("pages", [])):
     print(f"\nPage {page_num}")
 
     for block in page.get("boxes", []):
-        for line in block.get("textlines", []):
-            for span in line.get("spans", []):
-                text = span.get("text", "")
-                flags = span.get("flags", 0)
-                styles = parse_span_flags(flags)
+        if block["boxclass"] == "text":
+            for line in block["textlines"]:
+                for span in line["spans"]:
+                    text = span.get("text", "")
+                    flags = span.get("flags", 0)
+                    styles = parse_span_flags(flags)
 
-                print({
-                    "text": text,
-                    "flags": flags,
-                    "styles": styles
-                })
+                    print({
+                        "text": text,
+                        "flags": flags,
+                        "styles": styles
+                    })
 ```
 
 ---
