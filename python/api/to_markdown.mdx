@@ -246,7 +246,7 @@ pymupdf4llm.to_markdown(doc: pymupdf.Document | str, *,
   | Key | Type | Description |
   |-----|------|-------------|
   | `text` | `str` | Markdown content of the page |
-  | `metadata` | `dict` | Page metadata — see [Page Chunking](/concepts/page-chunking) for the full schema |
+  | `metadata` | `dict` | Page metadata — see [Chunk Schema](/reference/chunk-schema) for the full schema |
 </ResponseField>
 
 ---
@@ -307,7 +307,7 @@ md = pymupdf4llm.to_markdown("scanned.pdf", force_ocr=True)
 ## See Also
 
 <CardGroup cols={3}>
-  <Card title="Extract Markdown Guide" icon="markdown" href="/python/guides/extract-markdown">
+  <Card title="Extract Markdown Guide" icon="markdown" href="/python/guides/extract-Markdown">
     Full walkthrough with all common options.
   </Card>
   <Card title="to_json()" icon="brackets-curly" href="/python/api/to_json">

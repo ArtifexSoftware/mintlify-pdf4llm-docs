@@ -38,13 +38,13 @@ The three primary extraction functions share a common interface — they all acc
 ## Classes
 
 <CardGroup cols={1}>
-  <Card title="LlamaMarkdownReader" icon="database" href="/python/api/LlamaMarkdownReader">
+  <Card title="LlamaMarkdownReader" icon="database" href="/python/api/llamamarkdownreader">
     A LlamaIndex `BaseReader` implementation. Loads documents as `Document` objects for use in LlamaIndex pipelines and vector stores.
   </Card>
-  <Card title="IdentifyHeaders" icon="rectangle" href="/python/api/IdentifyHeaders">
+  <Card title="IdentifyHeaders" icon="rectangle" href="/python/api/identifyheaders">
     Detects repeating page headers and footers. Returns bounding boxes and a `get_margins()` helper for passing directly to extraction functions.
   </Card>
-  <Card title="TocHeaders" icon="list" href="/python/api/TocHeaders">
+  <Card title="TocHeaders" icon="list" href="/python/api/tocheaders">
     Extracts heading hierarchy from an embedded table of contents or infers it from font sizes. Returns a structured list of heading entries with levels and page numbers.
   </Card>
 </CardGroup>
@@ -73,5 +73,5 @@ The three primary extraction functions share a common interface — they all acc
 | `LlamaMarkdownReader.load_data()` | `list[Document]` | `file`, `pages`, `extra_info` |
 | `IdentifyHeaders.get_margins()` | `tuple` | `body_limit` |
 | `TocHeaders.headers` | `list[dict]` | `body_limit` |
-| `version()` | `dict` | — |
+| `version` | `str` | — |
 

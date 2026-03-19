@@ -1,37 +1,339 @@
 ---
 title: Chunk Schema
-description: Full dictionary schema for each page chunk returned when page_chunks=True.
+description: Full dictionary schema for each page chunk returned when `page_chunks=True`.
 ---
  
 ## Overview
- 
+  
 When `page_chunks=True` is passed to [to_markdown()](../api/to_markdown) or [to_text()](../api/to_text), the return value is a list of dictionaries — one per page — rather than a single concatenated string. Each dictionary follows the schema described on this page.
- 
+
+<img
+  src="/images/chunk-schema.svg"
+  alt="PyMuPDF4LLM Chunk Schema Diagram"
+  className="mx-auto mb-0"
+/>
+
 ```python
 chunks = pymupdf4llm.to_markdown("document.pdf", page_chunks=True)
  
-chunk = chunks[0]
-print(chunk.keys())
-# dict_keys(['metadata', 'toc_items', 'tables', 'images', 'graphics', 'text', 'words', 'page_boxes'])
+for chunk in chunks:
+    for key in chunk:
+        print(key)
+        print("----")
+        print (chunk[key])
 ```
  
+```python
+import pymupdf4llm
+ 
+chunks = pymupdf4llm.to_markdown("document.pdf", page_chunks=True)
+ 
+for chunk in chunks:
+    print(chunk["metadata"]["page_number"], chunk["text"][:100])
+```
+ 
+This is the recommended approach for RAG pipelines, as it lets you attach rich metadata to each piece of content before embedding or indexing it.
+ 
+---
+ 
+## Chunk schema
+ 
+Each item in the returned list is a dictionary with four top-level keys:
+ 
+```python
+{
+    "metadata":   { ... },   # Document and page-level info
+    "toc_items":  [ ... ],   # Table of contents entries for this page
+    "page_boxes": [ ... ],   # Layout elements detected on this page
+    "text":       "..."      # Full markdown text for this page
+}
+```
+---
+
+## `metadata`
+
+Contains both document-level properties (consistent across all chunks) and page-level properties (unique per chunk).
+
+```python
+chunk["metadata"] = {
+    # Document-level
+    "format":       "PDF 1.7",
+    "title":        "My Document",
+    "author":       "Jane Smith",
+    "subject":      "",
+    "keywords":     "",
+    "creator":      "pdf-lib",
+    "producer":     "pdf-lib",
+    "creationDate": "D:20260206183204Z",
+    "modDate":      "D:20260206183204Z",
+    "trapped":      "",
+    "encryption":   None,
+
+    # Page-level
+    "file_path":    "document.pdf",
+    "page_count":   19,
+    "page_number":  1        # 1-based
+}
+```
+
+<ResponseField name="format" type="string">
+  The PDF version string, e.g. `"PDF 1.7"`.
+</ResponseField>
+
+<ResponseField name="title" type="string">
+  Document title from PDF metadata. Empty string if not set.
+</ResponseField>
+
+<ResponseField name="author" type="string">
+  Document author from PDF metadata. Empty string if not set.
+</ResponseField>
+
+<ResponseField name="creator" type="string">
+  The application that originally created the PDF.
+</ResponseField>
+
+<ResponseField name="producer" type="string">
+  The application that produced or converted the PDF.
+</ResponseField>
+
+<ResponseField name="creationDate" type="string">
+  PDF date string in `D:YYYYMMDDHHmmSSZ` format.
+</ResponseField>
+
+<ResponseField name="modDate" type="string">
+  Date the PDF was last modified, same format as `creationDate`.
+</ResponseField>
+
+<ResponseField name="encryption" type="string | None">
+  Encryption method if the document is encrypted, otherwise `None`.
+</ResponseField>
+
+<ResponseField name="file_path" type="string">
+  The file path of the source document as provided to `to_markdown()`.
+</ResponseField>
+
+<ResponseField name="page_count" type="integer">
+  Total number of pages in the document.
+</ResponseField>
+
+<ResponseField name="page_number" type="integer">
+  The 1-based page number this chunk represents.
+</ResponseField>
+
+### Usage example
+
+```python
+for chunk in chunks:
+    meta = chunk["metadata"]
+    print(f"Page {meta['page_number']} of {meta['page_count']} — {meta['file_path']}")
+```
+
+---
+
+## `toc_items`
+
+A list of Table of Contents entries that fall on this page. Each entry is a list in the format `[level, title, page_number]`.
+
+```python
+chunk["toc_items"] = [
+    [1, "Introduction",        3],
+    [2, "Background",          3],
+    [2, "Problem Statement",   3],
+]
+```
+
+<ResponseField name="level" type="integer">
+  Heading hierarchy depth. `1` = top-level chapter, `2` = section, `3` = subsection, etc.
+</ResponseField>
+
+<ResponseField name="title" type="string">
+  The heading text as it appears in the Table of Contents.
+</ResponseField>
+
+<ResponseField name="page_number" type="integer">
+  The page number the TOC entry points to (1-based).
+</ResponseField>
+
+<Note>
+  `toc_items` is an empty list `[]` for pages that have no TOC entries, or for documents without a Table of Contents. Always check before iterating.
+</Note>
+
+### Usage example
+
+```python
+for chunk in chunks:
+    for level, title, page in chunk["toc_items"]:
+        indent = "  " * (level - 1)
+        print(f"{indent}{title} (p.{page})")
+```
+
+---
+
+## `page_boxes`
+
+A list of layout elements detected on the page by the layout analysis engine. Each element describes a discrete visual block — a paragraph, heading, image, table, list item, and so on — along with its position on the page.
+
+```python
+chunk["page_boxes"] = [
+    {
+        "index": 0,
+        "class": "section-header",
+        "bbox":  (58, 55, 560, 108),
+        "pos":   (0, 88)
+    },
+    {
+        "index": 1,
+        "class": "text",
+        "bbox":  (36, 125, 574, 209),
+        "pos":   (88, 524)
+    },
+    ...
+]
+```
+
+<ResponseField name="index" type="integer">
+  Zero-based position of this box in the page's layout order (reading order, top to bottom).
+</ResponseField>
+
+<ResponseField name="class" type="string">
+  The type of layout element detected. See the [box classes](#box-classes) table below.
+</ResponseField>
+
+<ResponseField name="bbox" type="tuple[float, float, float, float]">
+  Bounding box of the element in PDF page coordinates: `(x0, y0, x1, y1)`. Origin is the top-left of the page. Units are PDF points (1 point = 1/72 inch).
+</ResponseField>
+
+<ResponseField name="pos" type="tuple[int, int]">
+  Character offsets into the page's `text` string: `(start, end)`. Use these to slice the exact text that corresponds to this layout element.
+</ResponseField>
+
+### Box classes
+
+| Class | Description |
+|-------|-------------|
+| `text` | Body paragraph or general prose |
+| `section-header` | A heading or section title |
+| `list-item` | A bullet or numbered list entry |
+| `table` | A detected table |
+| `picture` | An image or figure |
+| `caption` | A caption beneath a figure or table |
+| `page-footer` | Footer content at the bottom of the page |
+| `page-header` | Header content at the top of the page |
+
+### Usage example — extract only headings
+
+```python
+for chunk in chunks:
+    boxes = chunk["page_boxes"]
+    text  = chunk["text"]
+
+    for box in boxes:
+        if box["class"] == "section-header":
+            start, end = box["pos"]
+            heading_text = text[start:end].strip()
+            print(heading_text)
+```
+
+### Usage example — get bounding boxes for all images
+
+```python
+for chunk in chunks:
+    page = chunk["metadata"]["page_number"]
+    for box in chunk["page_boxes"]:
+        if box["class"] == "picture":
+            print(f"Page {page}: image at {box['bbox']}")
+```
+
+---
+
+## `text`
+
+The full markdown-formatted text content of the page as a single string. Headings, bold text, tables, and list items are represented using standard markdown syntax.
+
+```python
+chunk["text"] = """## Introduction
+
+We highlight four promising research opportunities to improve
+_Large Language Model_ inference for datacenter AI...
+
+## **BACKGROUND**
+
+...
+"""
+```
+
+<ResponseField name="text" type="string">
+  Markdown string for the entire page. Newlines separate logical blocks. Images that cannot be extracted are replaced with a placeholder like `==> picture [535 x 193] intentionally omitted <==`.
+</ResponseField>
+
+<Note>
+  The character offsets in each `page_boxes[n]["pos"]` correspond directly to positions within this string, so you can use them to precisely extract the text for any layout element.
+</Note>
+
+### Usage example — slice text by layout element
+
+```python
+chunk = chunks[0]
+text  = chunk["text"]
+
+for box in chunk["page_boxes"]:
+    start, end = box["pos"]
+    print(f"[{box['class']}]", text[start:end].strip()[:80])
+```
+
+---
+
+## Full iteration example
+
+```python
+import pymupdf4llm
+
+chunks = pymupdf4llm.to_markdown("document.pdf", page_chunks=True)
+
+for chunk in chunks:
+    meta      = chunk["metadata"]
+    toc       = chunk["toc_items"]
+    boxes     = chunk["page_boxes"]
+    text      = chunk["text"]
+
+    print(f"\n--- Page {meta['page_number']} of {meta['page_count']} ---")
+
+    # TOC entries on this page
+    for level, title, page in toc:
+        print(f"  TOC [{level}]: {title}")
+
+    # Layout elements
+    for box in boxes:
+        start, end = box["pos"]
+        snippet = text[start:end].strip()[:60].replace("\n", " ")
+        print(f"  [{box['class']}] {snippet}")
+```
+
+---
+
+## Related
+
+| Method | Description |
+|--------|-------------|
+| [`to_markdown()`](/python/api/to_markdown) | The method that produces chunks when `page_chunks=True` |
+| [`to_json()`](/python/api/to_json) | Alternative export with full bounding box and layout data |
+| [`get_key_values()`](/python/api/get_key_values) | Extract form field data from a PDF |
 
 
-## TODO: Full schema with descriptions for each key, including examples of the content and metadata fields.
 
 
 
 <CardGroup cols={2}>
+  <Card title="JSON Schema" icon="layer-group" href="/python/reference/json-schema">
+    The JSON schema reference for the full output of to_json(), including text, image, table, and drawing blocks with bounding boxes and metadata.
+  </Card>
   <Card title="Extract JSON Guide" icon="brackets-curly" href="/python/guides/extract-json">
     Working walkthrough with filtering, DataFrame export, and pipeline examples.
   </Card>
   <Card title="to_json()" icon="code" href="/python/api/to_json">
     Full API reference for to_json().
   </Card>
-  <Card title="JSON Schema" icon="layer-group" href="/python/reference/json-schema">
-    The JSON schema reference for the full output of to_json(), including text, image, table, and drawing blocks with bounding boxes and metadata.
-  </Card>
-  <Card title="Tables Guide" icon="table" href="/python/guides/tables">
-    Extracting and working with table blocks.
+  <Card title="Get Form Data" icon="table" href="/python/api/get_key_values">
+    Extracting form data from PDF as key value pairs.
   </Card>
 </CardGroup>
