@@ -57,22 +57,22 @@
           {
             "group": "Getting Started",
             "pages": [
-              "python/getting-started/installation",
-              "python/getting-started/quickstart",
-              "python/getting-started/supported-formats"
+              "python/getting-started/installation/index",
+              "python/getting-started/quickstart/index",
+              "python/getting-started/supported-formats/index"
             ]
           },
           {
             "group": "Guides",
             "pages": [
-              "python/guides/extract-Markdown",
-              "python/guides/extract-JSON",
-              "python/guides/extract-Text",
-              "python/guides/images-and-graphics",
-              "python/guides/tables",
-              "python/guides/page-selection",
-              "python/guides/saving-output",
-              "python/guides/OCR"
+              "python/guides/extract-Markdown/index",
+              "python/guides/extract-JSON/index",
+              "python/guides/extract-Text/index",
+              "python/guides/images-and-graphics/index",
+              "python/guides/tables/index",
+              "python/guides/page-selection/index",
+              "python/guides/saving-output/index",
+              "python/guides/OCR/index"
             ]
           },
           {
@@ -85,10 +85,10 @@
           {
             "group": "Reference",
             "pages": [
-              "python/API",
+              "python/api/index",
               "python/reference/chunk-schema",
               "python/reference/JSON-schema",
-              "python/reference/Changelog"
+              "python/reference/changelog"
             ]
           }
         ]

@@ -1,25 +1,24 @@
 ---
-title: get_key_values()
-description: Extract individual words with bounding box coordinates and positional metadata.
+title: "get_key_values()"
+description: "Extract key-value pairs from all form fields (widgets) in a PDF document."
+icon: "table-list"
+---
+
+## Overview
+
+`get_key_values()` parses a PDF and extracts structured data from every form field (widget) it contains. It returns a list of dictionaries — one per field — each capturing the field name, its current value, and the pages on which it appears.
+
+<Note>
+  This method is only meaningful for **Form PDFs** — documents that contain interactive widgets. For non-form PDFs, it returns an empty list.
+</Note>
+
 ---
 
 ## Signature
 
 ```python
-pymupdf4llm.get_key_values(
-    doc: str | pymupdf.Document,
-    pages: list[int] | None = None,
-    force_ocr: bool = False,
-    ocr: bool = True,
-    ocr_adaptor: OcrAdaptor | None = None,
-) -> list[dict]
+pymupdf4llm.get_key_values(doc: str | pymupdf.Document) -> list[dict]
 ```
-
----
- 
-## Overview
-
-`get_key_values()` returns every word in the document as an individual dictionary, each carrying the word's text, its bounding box on the page, and its positional indices (page, block, line, word). This is the most granular extraction mode available, and is primarily used for redaction pipelines, spatial analysis, document comparison, and training data for layout models.
 
 ---
 
@@ -29,128 +28,119 @@ pymupdf4llm.get_key_values(
   Path to the document file, or an already-opened `pymupdf.Document` instance. Supports PDF, XPS, eBooks, and — with PyMuPDF Pro — Office formats.
 </ParamField>
 
-<ParamField path="pages" type="list[int]" default="None">
-  Zero-based list of page indices to extract. If `None`, all pages are processed.
-</ParamField>
-
-<ParamField path="force_ocr" type="bool" default="false">
-  When `True`, all pages are sent through OCR regardless of whether they contain selectable text.
-</ParamField>
-
-<ParamField path="ocr" type="bool" default="true">
-  When `True`, pages with no selectable text are automatically sent through OCR. Set to `False` to disable OCR entirely.
-</ParamField>
-
-<ParamField path="ocr_adaptor" type="OcrAdaptor | None" default="None">
-  A custom OCR engine adaptor. If `None`, the default `TesseractAdaptor` is used. See [OCR Adaptors](/guides/ocr#ocr-adaptors).
-</ParamField>
 
 ---
 
-## Returns
+## Return Value
 
-<ResponseField name="list[dict]" type="list">
-  A flat list of word dictionaries across all extracted pages, in reading order. Each dictionary contains:
+Returns a **list of dictionaries**, where each dictionary represents one form field:
 
-  | Key | Type | Description |
-  |-----|------|-------------|
-  | `text` | `str` | The word string |
-  | `bbox` | `list[float]` | Bounding box `[x0, y0, x1, y1]` in PDF points |
-  | `page` | `int` | Zero-based page index |
-  | `block` | `int` | Block index on the page |
-  | `line` | `int` | Line index within the block |
-  | `word` | `int` | Word index within the line |
+```python
+{
+    field_name:             # Full field name; nested components separated by dots
+    {
+        "value": str,       # The current field value, cast to string
+        "pages": list,      # 0-based page number(s) where the field appears
+    }
+    ...
+}
+```
 
-  Coordinates use PDF point units (1 pt = 1/72 inch) with the origin at the top-left corner of the page.
+### Field Dictionary Properties
+
+<ResponseField name="field_name" type="string" required>
+  The fully-qualified name of the form field. For hierarchical forms, parent and child names are separated by dots (e.g. `"section1.address.city"`).
+</ResponseField>
+
+<ResponseField name="value" type="string" required>
+  The field's current value, always represented as a string regardless of the original widget type (text, checkbox, radio button, etc.).
+</ResponseField>
+
+<ResponseField name="pages" type="list[int]" required>
+  A list of zero-based page indices where this field is present. A field can appear on multiple pages (e.g. when a master field has multiple instances across pages).
 </ResponseField>
 
 ---
 
-## Raises
+## Usage
 
-| Exception | Condition |
-|-----------|-----------|
-| `FileNotFoundError` | `doc` is a path string that does not exist |
-| `ValueError` | An index in `pages` is out of range for the document |
-| `ImportError` | `ocr=True` or `force_ocr=True` but the `ocr` dependency is not installed |
-| `LicenceError` | Document format requires PyMuPDF Pro which is not activated |
-
----
-
-## Examples
-
-### Minimal
+### Basic Example
 
 ```python
 import pymupdf4llm
 
-words = pymupdf4llm.get_key_values("document.pdf")
-print(f"{len(words)} words extracted")
-```
+result = pymupdf4llm.get_key_values("my_form.pdf")
 
-### Print words with positions
-
-```python
-for word in words[:20]:
-    print(f"{word['text']:20s}  p{word['page']}  bbox={word['bbox']}")
-```
-
-### Filter to a specific page
-
-```python
-page_0 = [w for w in words if w["page"] == 0]
-```
-
-### Search for a term
-
-```python
-matches = [w for w in words if w["text"].lower() == "revenue"]
-for m in matches:
-    print(f"Found on page {m['page']} at {m['bbox']}")
-```
-
-### Reconstruct lines
-
-```python
-from itertools import groupby
-
-words.sort(key=lambda w: (w["page"], w["block"], w["line"], w["word"]))
-
-for key, group in groupby(words, key=lambda w: (w["page"], w["block"], w["line"])):
-    line_text = " ".join(w["text"] for w in group)
-    print(line_text)
-```
-
-### Export as coordinate dataset
-
-```python
-import json
-from pathlib import Path
-
-dataset = [
-    {"text": w["text"], "x0": w["bbox"][0], "y0": w["bbox"][1],
-     "x1": w["bbox"][2], "y1": w["bbox"][3], "page": w["page"]}
-    for w in words
-]
-
-Path("words.json").write_text(
-    json.dumps(dataset, indent=2, ensure_ascii=False),
-    encoding="utf-8"
-)
+for key, field in result.items():
+    print(key, field["value"], field["pages"])
 ```
 
 ---
 
+## Example Output
+
+Given a simple two-page application form, the output might look like:
+
+```json
+{
+  "applicant.name":  {"value": "Jane Smith",        "pages": [0]},
+  "applicant.email": {"value": "jane@example.com",  "pages": [0]},
+  "terms_accepted":  {"value": "Yes",               "pages": [1]},
+  "signature":       {"value": "",                  "pages": [1]}
+}
+```
+
+---
+
+## Behaviour Notes
+
+<AccordionGroup>
+  <Accordion title="Non-form PDFs">
+    If the document contains no widgets, `get_key_values()` returns an empty list `[]`. It will never raise an error for this case — it is always safe to call.
+  </Accordion>
+
+  <Accordion title="Field values are always strings">
+    Regardless of the original widget type — text box, checkbox, radio group, dropdown, or signature — the `value` is always returned as a `str`. For empty fields, this will be an empty string `""`.
+  </Accordion>
+
+  <Accordion title="Multi-page fields">
+    A single logical field can appear on multiple pages. In this case the field appears **once** in the returned list, and `pages` will contain all page indices where the field is rendered (e.g. `[0, 2, 4]`).
+  </Accordion>
+
+</AccordionGroup>
+
+---
+
+## Common Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Form Data Extraction" icon="file-invoice">
+    Pull structured responses from filled PDF forms — employment applications, tax documents, surveys — without manual copying.
+  </Card>
+  <Card title="RAG Pre-processing" icon="brain">
+    Augment your Retrieval-Augmented Generation pipeline with clean, structured form data alongside the text content from `to_markdown()`.
+  </Card>
+  <Card title="Data Validation" icon="circle-check">
+    Check that required fields are filled before processing a submitted PDF form programmatically.
+  </Card>
+  <Card title="Form Auditing" icon="magnifying-glass">
+    Inventory all fields across a batch of PDF templates to confirm naming conventions and completeness.
+  </Card>
+</CardGroup>
+
+---
+
+
 ## See Also
 
 <CardGroup cols={2}>
-  <Card title="to_json()" icon="brackets-curly" href="/python/api/to_json">
-    Block and span-level data for layout pipelines.
+  <Card title="TocHeaders" icon="list" href="/python/api/TocHeaders">
+    Detect table-of-contents style heading structure.
   </Card>
-  <Card title="OCR" icon="eye" href="/python/guides/ocr">
-    Word-level extraction on scanned documents.
+  <Card title="IdentifyHeaders" icon="header" href="/python/api/identifyheaders">
+    Detect and classify page headers and footers across a document for exclusion or analysis.
   </Card>
-  <Card title="JSON Schema" icon="file-code" href="/python/reference/json-schema">
-    Full output field reference.
+  <Card title="Extract Markdown" icon="file" href="/python/guides/extract-markdown">
+    Practical guide to using margins in extraction.
   </Card>
 </CardGroup>
