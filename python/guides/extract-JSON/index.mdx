@@ -23,7 +23,7 @@ data = pymupdf4llm.to_json("document.pdf")
 
 ## Output Structure
 
-The return value is a list of page objects — one per page and file metadata. See the [JSON Schema](/python/reference/json-schema) for a full field reference. 
+The return value is a list of page objects — one per page and file metadata. See the [JSON Schema](/python/reference/JSON-schema) for a full field reference. 
 
 
 
@@ -287,7 +287,7 @@ for page_num, page in enumerate(data.get("pages", [])):
 ---
 
 <Note>
-  For the full API signature, see the [`to_json()` API reference](/api/to_json).
+  For the full API signature, see the [`to_json()` API reference](/python/api/to_json).
 </Note>
 
 ---
@@ -295,16 +295,16 @@ for page_num, page in enumerate(data.get("pages", [])):
 ## Next Steps
 
 <CardGroup cols={2}>
-  <Card title="JSON Schema" icon="file-code" href="/python/reference/json-schema">
+  <Card title="JSON Schema" icon="file-code" href="/python/reference/JSON-schema">
     Full field descriptions for every object in the JSON output.
   </Card>
-  <Card title="Extract Markdown" icon="markdown" href="/python/guides/extract-Markdown/index">
+  <Card title="Extract Markdown" icon="markdown" href="/python/guides/extract-Markdown">
     Preserve structure and formatting for LLM pipelines.
   </Card>
-  <Card title="Extract Text" icon="text" href="/python/guides/extract-Text/index">
+  <Card title="Extract Text" icon="text" href="/python/guides/extract-Text">
     Get clean, plain text output.
   </Card>
-  <Card title="Tables" icon="table" href="/python/guides/tables/index">
+  <Card title="Tables" icon="table" href="/python/guides/tables">
     Table block structure explained.
   </Card>
 </CardGroup>
