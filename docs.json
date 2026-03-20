@@ -72,7 +72,9 @@
               "python/guides/tables/index",
               "python/guides/page-selection/index",
               "python/guides/saving-output/index",
-              "python/guides/OCR/index"
+              "python/guides/OCR/index",
+              "python/guides/OCR/plugins",
+              "python/guides/OCR/tesseract-language-packs"
             ]
           },
           {

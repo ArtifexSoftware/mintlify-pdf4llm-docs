@@ -1,6 +1,7 @@
 ---
 title: Installation
 description: Install PyMuPDF4LLM and its optional dependencies.
+icon: "circle-down"
 ---
 
 ## Requirements
@@ -25,33 +26,18 @@ This gives you full access to Markdown, JSON, and plain text extraction from doc
 
 ### OCR Support
 
-Enables automatic Optical Character Recognition for scanned or image-based PDFs. Requires [Tesseract](https://github.com/tesseract-ocr/tesseract) to be installed on your system alongside the Python bindings.
+Enables automatic Optical Character Recognition for PDFs containing scanned or image-based content. [Tesseract](https://github.com/tesseract-ocr/tesseract) is included by default.
 
-To install Tesseract and OpenCV at the system level:
+Support for [Rapid OCR](https://github.com/RapidAI/RapidOCR) and [Paddle OCR](https://github.com/PaddlePaddle/PaddleOCR) is also available as optional OCR engines and should be installed if required.
 
-<Tabs>
-  <Tab title="macOS">
-    ```bash
-    brew install tesseract
-    pip install opencv-python-headless pytesseract
-    ```
-  </Tab>
-  <Tab title="Ubuntu / Debian">
-    ```bash
-    sudo apt install tesseract-ocr
-    pip install opencv-python-headless pytesseract
-    ```
-  </Tab>
-  <Tab title="Windows">
-    Download and install Tesseract from the [UB-Mannheim installer](https://github.com/UB-Mannheim/tesseract/wiki), then:
-    ```bash
-    pip install opencv-python-headless pytesseract
-    ```
-  </Tab>
-</Tabs>
+
 
 <Warning>
-  OCR is only triggered automatically when PyMuPDF4LLM detects that a page contains no selectable text. See [OCR](python/guides/OCR/index) for details on when and how to control this behaviour.
+  OCR is only triggered automatically when PyMuPDF4LLM detects that a page that requires it.
+  
+  See:
+    - [Hybrid OCR Strategy](/python/guides/OCR#hybrid-ocr-strategy) 
+    - [How OCR is Triggered](/python/guides/OCR#how-ocr-is-triggered)
 </Warning>
 
 
