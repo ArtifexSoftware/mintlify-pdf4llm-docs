@@ -3,6 +3,14 @@ title: Changelog
 description: Version history and release notes for PyMuPDF4LLM.
 ---
 
+## 1.27.2.2
+
+Major rework of OCR support:
+
+- Tesseract-OCR is now supported as a plugin in the ocr installation folder.
+- OCR support has been reworked to automatically choose the most appropriate OCR engine combination, depending on the availability of Python package `rapidocr_onnxruntime` and Tesseract's language support files ("tessdata").
+- Parameter `force_ocr=True` does no longer require to specify `ocr_function`. If no OCR function is given, the best available plugin is chosen. An exception is raised only if none of the plugins is usable.
+
 ## v1.27.2.1
 
 PyMuPDF4LLM now automatically installs and uses `pymupdf_layout`.
