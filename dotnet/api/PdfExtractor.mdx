@@ -1,0 +1,730 @@
+---
+title: PdfExtractor
+description: Complete API reference for the PdfExtractor static class — every method, property, parameter, return type, and exception, generated from source.
+---
+
+# Overview
+
+`PdfExtractor` is the static entry point for all PDF4LLM operations. Import the namespace and call methods directly — no instantiation required.
+
+```csharp
+using PDF4LLM;
+
+string markdown = PdfExtractor.ToMarkdown("document.pdf");
+```
+
+All extraction methods are available in two overloads: one that accepts an open `MuPDF.NET.Document`, and one that accepts a file path string. The file path overload opens and disposes the document internally. Use the `Document` overload when calling multiple methods on the same file to avoid re-parsing.
+
+---
+
+## Properties
+
+### Version
+
+```csharp
+public static string Version { get; }
+```
+
+Returns the package version string (semantic version).
+
+```csharp
+Console.WriteLine(PdfExtractor.Version); // e.g. "1.27.2.3"
+```
+
+---
+
+### VersionTuple
+
+```csharp
+public static (int major, int minor, int patch) VersionTuple { get; }
+```
+
+Returns the version as a named tuple of integers, useful for programmatic version checks.
+
+```csharp
+var (major, minor, patch) = PdfExtractor.VersionTuple;
+if (major < 2)
+    Console.WriteLine("Consider upgrading PDF4LLM.");
+```
+
+---
+{/*
+### UseLayout
+
+```csharp
+public static bool UseLayout { get; set; } = true;
+```
+
+Controls which internal pipeline is used for extraction.
+
+When `true` (default), all methods use the layout analysis pipeline (`DocumentLayout.ParseDocument`), which gives accurate reading order, table detection, column linearisation, and heading inference.
+
+When `false`, `ToMarkdown` falls back to the legacy RAG path. `ToJson`, `ToText`, and `ParseDocument` require layout mode and throw `NotSupportedException` if `UseLayout` is `false`.
+
+<Warning>
+  Set `UseLayout = false` only if you have a specific reason to use the legacy path. The layout pipeline is recommended for all new code.
+</Warning>
+
+```csharp
+PdfExtractor.UseLayout = false; // switch to legacy RAG path
+```
+
+---
+
+### SetUseLayout
+
+```csharp
+public static void SetUseLayout(bool yes)
+```
+
+Convenience method equivalent to setting `PdfExtractor.UseLayout = yes` directly.
+
+---
+*/}
+
+## Methods
+
+- [ToMarkdown](#tomarkdown)
+- [ToJson](#tojson)
+- [ToText](#totext)
+- [ParseDocument](#parsedocument)
+- [LlamaMarkdownReader](#llamamarkdownreader)
+- [GetKeyValues](#getkeyvalues)
+
+---
+
+## ToMarkdown
+
+Converts a PDF to a GitHub-compatible Markdown string. Headings, tables, bold/italic formatting, multi-column layouts, and images are all detected and rendered.
+
+### Signatures
+
+```csharp
+public static string ToMarkdown(
+    Document          doc,
+    bool              header       = true,
+    bool              footer       = true,
+    List<int>?        pages        = null,
+    bool              writeImages  = false,
+    bool              embedImages  = false,
+    string            imagePath    = "",
+    string            imageFormat  = "png",
+    string            filename     = "",
+    bool              forceText    = true,
+    bool              pageChunks   = false,
+    bool              pageSeparators = false,
+    int               dpi          = 150,
+    int               ocrDpi       = 300,
+    float             pageWidth    = 612,
+    float?            pageHeight   = null,
+    bool              ignoreCode   = false,
+    bool              showProgress = false,
+    bool              useOcr       = true,
+    string            ocrLanguage  = "eng",
+    bool              forceOcr     = false,
+    OcrPageFunction?  ocrFunction  = null
+);
+
+public static string ToMarkdown(
+    string            path,
+    bool              header       = true,
+    bool              footer       = true,
+    List<int>?        pages        = null,
+    bool              writeImages  = false,
+    bool              embedImages  = false,
+    string            imagePath    = "",
+    string            imageFormat  = "png",
+    string            filename     = "",
+    bool              forceText    = true,
+    bool              pageChunks   = false,
+    bool              pageSeparators = false,
+    int               dpi          = 150,
+    int               ocrDpi       = 300,
+    float             pageWidth    = 612,
+    float?            pageHeight   = null,
+    bool              ignoreCode   = false,
+    bool              showProgress = false,
+    bool              useOcr       = true,
+    string            ocrLanguage  = "eng",
+    bool              forceOcr     = false,
+    OcrPageFunction?  ocrFunction  = null
+);
+```
+
+### Parameters
+
+<ParamField path="doc" type="MuPDF.NET.Document" required>
+  An already-opened MuPDF.NET `Document`. Use this overload when calling multiple methods on the same file.
+</ParamField>
+
+<ParamField path="path" type="string" required>
+  Path to a PDF file. Opens and disposes the document internally. Throws `ArgumentException` if null or whitespace.
+</ParamField>
+
+<ParamField path="header" type="bool" default="true">
+  When `true`, repeating page header content is included in the output. Set to `false` to suppress headers that do not add extraction value — such as document titles repeated on every page.
+</ParamField>
+
+<ParamField path="footer" type="bool" default="true">
+  When `true`, repeating page footer content is included in the output. Set to `false` to suppress footers such as page numbers and confidentiality notices.
+</ParamField>
+
+<ParamField path="pages" type="List<int>?" default="null">
+  Zero-based page numbers to process. Pages are processed in the order supplied. `null` processes all pages in document order.
+</ParamField>
+
+<ParamField path="writeImages" type="bool" default="false">
+  When `true`, images and vector graphic regions are extracted and saved to disk at `imagePath`. Markdown image references are inserted inline at the corresponding positions.
+
+  Mutually exclusive with `embedImages` — passing both `true` throws `ArgumentException`.
+
+  <Warning>
+    If your document contains text rendered over full-page background images, leave `writeImages` as `false` to ensure the text is extracted rather than captured as part of the image.
+  </Warning>
+</ParamField>
+
+<ParamField path="embedImages" type="bool" default="false">
+  When `true`, images are encoded as Base64 data URIs and embedded directly in the Markdown output. No files are written to disk. Mutually exclusive with `writeImages` — passing both `true` throws `ArgumentException`. May significantly increase the size of the output string for image-heavy documents.
+</ParamField>
+
+<ParamField path="imagePath" type="string" default='""'>
+  Directory in which to save extracted images when `writeImages` is `true`. Defaults to the process working directory. The directory must exist — it will not be created automatically.
+</ParamField>
+
+<ParamField path="imageFormat" type="string" default='"png"'>
+  File format for extracted images, as a lowercase extension string. Common values: `"png"` (lossless, default), `"jpg"` (lossy, smaller), `"webp"`, `"tiff"`. All MuPDF-supported formats are accepted. Only relevant when `writeImages` or `embedImages` is `true`.
+</ParamField>
+
+<ParamField path="filename" type="string" default='""'>
+  Overrides the source filename used when naming extracted image files. Useful when the document is opened from a stream or memory buffer with no inherent filename. Defaults to `doc.Name` when empty.
+</ParamField>
+
+<ParamField path="forceText" type="bool" default="true">
+  When `true`, extracts text from regions the layout engine classifies as pictures or image backgrounds, appending it after the image reference in the output. Useful for PDFs exported from presentation tools where text is layered over slide backgrounds.
+</ParamField>
+
+<ParamField path="pageChunks" type="bool" default="false">
+  When `true`, the return value is a JSON string containing an array of per-page objects rather than a single concatenated Markdown string. Each object contains the page's Markdown text and metadata. See [Returns](#returns-tomarkdown) below.
+</ParamField>
+
+<ParamField path="pageSeparators" type="bool" default="false">
+  When `true`, inserts a separator string between pages in the output. Intended for debugging — use `pageChunks` for production per-page output.
+</ParamField>
+
+<ParamField path="dpi" type="int" default="150">
+  Resolution in dots per inch for rasterising images written to disk or embedded as Base64. Higher values increase image quality and file size. Only relevant when `writeImages` or `embedImages` is `true`.
+</ParamField>
+
+<ParamField path="ocrDpi" type="int" default="300">
+  Resolution used when rendering a page to an intermediate image for OCR. Higher values may improve OCR accuracy but increase memory usage and processing time. The default of `300` is sufficient for most documents. Only relevant when `useOcr` or `forceOcr` is `true`.
+</ParamField>
+
+<ParamField path="pageWidth" type="float" default="612">
+  Desired page width in points. Ignored for PDFs, which have fixed page dimensions. For reflowable documents (eBooks, plain text), this sets the virtual page width. Default assumes US Letter width (`612` pt = 8.5 in).
+</ParamField>
+
+<ParamField path="pageHeight" type="float?" default="null">
+  Desired page height in points for reflowable documents. When `null`, the document is treated as a single large page with no page separators.
+</ParamField>
+
+<ParamField path="ignoreCode" type="bool" default="false">
+  When `true`, monospaced text is not given special formatting and no code blocks are generated. Useful for documents where monospaced fonts are used decoratively rather than for code.
+</ParamField>
+
+<ParamField path="showProgress" type="bool" default="false">
+  When `true`, writes a per-page progress indicator to the console during processing.
+</ParamField>
+
+<ParamField path="useOcr" type="bool" default="true">
+  When `true`, applies Tesseract OCR to pages that the layout engine determines would benefit from it — typically pages with little or no selectable text. Tesseract must be installed and on the `PATH`.
+</ParamField>
+
+<ParamField path="ocrLanguage" type="string" default='"eng"'>
+  Tesseract language code. Use `+` to combine multiple languages: `"eng+fra"`. The corresponding language data files must be installed. Only relevant when `useOcr` or `forceOcr` is `true`. See [Tesseract Language Packs](/guides/tesseract-language-packs).
+</ParamField>
+
+<ParamField path="forceOcr" type="bool" default="false">
+  When `true`, applies OCR to every page unconditionally, regardless of whether the page contains selectable text. Use for documents known to be entirely image-based. When `false`, OCR is applied only to pages the layout engine identifies as candidates.
+</ParamField>
+
+<ParamField path="ocrFunction" type="OcrPageFunction?" default="null">
+  A custom OCR delegate to use in place of the built-in Tesseract engine. When `null`, Tesseract is used. See the OCR customisation documentation for the expected delegate signature.
+</ParamField>
+
+### Returns
+
+When `pageChunks` is `false` (default): a single `string` of GitHub-compatible Markdown covering all processed pages, with pages separated by a horizontal rule (`---`).
+
+When `pageChunks` is `true`: a JSON `string` containing an array of per-page objects. Each object has the following shape:
+
+```json
+{
+  "page":     0,
+  "text":     "# Page heading\n\nBody text...",
+  "metadata": {
+    "file_path":   "document.pdf",
+    "page_count":  12,
+    "page_number": 1
+  }
+}
+```
+
+### Exceptions
+
+| Exception | Condition |
+|---|---|
+| `ArgumentException` | `path` is null or whitespace, or both `writeImages` and `embedImages` are `true`. |
+| `FileNotFoundException` | `path` does not exist. |
+| `DirectoryNotFoundException` | `imagePath` directory does not exist when `writeImages` is `true`. |
+| `MuPdfException` | The file is not a valid PDF, is password-protected, or is corrupted. |
+| `TesseractNotFoundException` | `useOcr` or `forceOcr` is `true` but Tesseract is not on the `PATH`. |
+
+---
+
+## ToJson
+
+Exports the complete layout structure of a PDF as a JSON string. Every block on every processed page — text, tables, and images — is included with its type, content, and bounding box.
+
+### Signatures
+
+```csharp
+public static string ToJson(
+    Document          doc,
+    int               imageDpi     = 150,
+    string            imageFormat  = "png",
+    string            imagePath    = "",
+    List<int>?        pages        = null,
+    int               ocrDpi       = 300,
+    bool              writeImages  = false,
+    bool              embedImages  = false,
+    bool              showProgress = false,
+    bool              forceText    = true,
+    bool              useOcr       = true,
+    string            ocrLanguage  = "eng",
+    bool              forceOcr     = false,
+    OcrPageFunction?  ocrFunction  = null
+);
+
+public static string ToJson(
+    string            path,
+    int               imageDpi     = 150,
+    string            imageFormat  = "png",
+    string            imagePath    = "",
+    List<int>?        pages        = null,
+    int               ocrDpi       = 300,
+    bool              writeImages  = false,
+    bool              embedImages  = false,
+    bool              showProgress = false,
+    bool              forceText    = true,
+    bool              useOcr       = true,
+    string            ocrLanguage  = "eng",
+    bool              forceOcr     = false,
+    OcrPageFunction?  ocrFunction  = null
+);
+```
+
+### Parameters
+
+<ParamField path="doc / path" type="MuPDF.NET.Document | string" required>
+  An open `Document` or a path to a PDF file. The path overload opens and disposes the document internally.
+</ParamField>
+
+<ParamField path="imageDpi" type="int" default="150">
+  Resolution for rasterised images written to disk or embedded as Base64. Only relevant when `writeImages` or `embedImages` is `true`.
+</ParamField>
+
+<ParamField path="imageFormat" type="string" default='"png"'>
+  Format for extracted images. Accepts any MuPDF-supported extension: `"png"`, `"jpg"`, `"webp"`, `"tiff"`. Only relevant when `writeImages` or `embedImages` is `true`.
+</ParamField>
+
+<ParamField path="imagePath" type="string" default='""'>
+  Directory for saved images when `writeImages` is `true`. Must exist before calling `ToJson`.
+</ParamField>
+
+<ParamField path="pages" type="List<int>?" default="null">
+  Zero-based page numbers to process. `null` processes all pages in document order.
+</ParamField>
+
+<ParamField path="ocrDpi" type="int" default="300">
+  Resolution for OCR page rendering. Only relevant when `useOcr` or `forceOcr` is `true`.
+</ParamField>
+
+<ParamField path="writeImages" type="bool" default="false">
+  When `true`, saves image and graphic regions to disk at `imagePath`.
+</ParamField>
+
+<ParamField path="embedImages" type="bool" default="false">
+  When `true`, encodes image regions as Base64 and includes them in the JSON output.
+</ParamField>
+
+<ParamField path="showProgress" type="bool" default="false">
+  When `true`, writes a per-page progress indicator to the console.
+</ParamField>
+
+<ParamField path="forceText" type="bool" default="true">
+  When `true`, extracts text from regions classified as picture areas by the layout engine.
+</ParamField>
+
+<ParamField path="useOcr" type="bool" default="true">
+  When `true`, applies OCR to pages the layout engine identifies as candidates.
+</ParamField>
+
+<ParamField path="ocrLanguage" type="string" default='"eng"'>
+  Tesseract language code for OCR. Use `+` to combine multiple languages.
+</ParamField>
+
+<ParamField path="forceOcr" type="bool" default="false">
+  When `true`, applies OCR to every page unconditionally.
+</ParamField>
+
+<ParamField path="ocrFunction" type="OcrPageFunction?" default="null">
+  Custom OCR delegate. When `null`, Tesseract is used.
+</ParamField>
+
+### Returns
+
+`string` — A JSON array, one object per processed page. See [JSON layout export](/guides/json-layout) for the full schema.
+
+### Exceptions
+
+| Exception | Condition |
+|---|---|
+| `ArgumentException` | `path` is null or whitespace. |
+| `NotSupportedException` | `PdfExtractor.UseLayout` is `false`. `ToJson` requires layout mode. |
+| `FileNotFoundException` | `path` does not exist. |
+| `MuPdfException` | The file is not a valid or readable PDF. |
+| `TesseractNotFoundException` | `useOcr` or `forceOcr` is `true` but Tesseract is not on the `PATH`. |
+
+---
+
+## ToText
+
+Converts a PDF to plain text using the same layout analysis pipeline as `ToMarkdown`, without any Markdown syntax. Tables can be rendered in multiple formats.
+
+### Signatures
+
+```csharp
+public static string ToText(
+    Document          doc,
+    string            filename         = "",
+    bool              header           = true,
+    bool              footer           = true,
+    List<int>?        pages            = null,
+    bool              ignoreCode       = false,
+    bool              showProgress     = false,
+    bool              forceText        = true,
+    int               ocrDpi           = 300,
+    bool              useOcr           = true,
+    string            ocrLanguage      = "eng",
+    string            tableFormat      = "grid",
+    bool              pageChunks       = false,
+    int               tableMaxWidth    = 100,
+    int               tableMinColWidth = 10,
+    bool              forceOcr         = false,
+    OcrPageFunction?  ocrFunction      = null
+);
+
+public static string ToText(
+    string            path,
+    string            filename         = "",
+    bool              header           = true,
+    bool              footer           = true,
+    List<int>?        pages            = null,
+    bool              ignoreCode       = false,
+    bool              showProgress     = false,
+    bool              forceText        = true,
+    int               ocrDpi           = 300,
+    bool              useOcr           = true,
+    string            ocrLanguage      = "eng",
+    string            tableFormat      = "grid",
+    bool              pageChunks       = false,
+    int               tableMaxWidth    = 100,
+    int               tableMinColWidth = 10,
+    bool              forceOcr         = false,
+    OcrPageFunction?  ocrFunction      = null
+);
+```
+
+### Parameters
+
+<ParamField path="doc / path" type="MuPDF.NET.Document | string" required>
+  An open `Document` or a path to a PDF file. The path overload opens and disposes the document internally.
+</ParamField>
+
+<ParamField path="filename" type="string" default='""'>
+  Overrides the source filename. Useful when the document has no inherent filename.
+</ParamField>
+
+<ParamField path="header" type="bool" default="true">
+  When `true`, includes repeating page header content. Set to `false` to suppress headers.
+</ParamField>
+
+<ParamField path="footer" type="bool" default="true">
+  When `true`, includes repeating page footer content. Set to `false` to suppress footers.
+</ParamField>
+
+<ParamField path="pages" type="List<int>?" default="null">
+  Zero-based page numbers to process. `null` processes all pages.
+</ParamField>
+
+<ParamField path="ignoreCode" type="bool" default="false">
+  When `true`, monospaced text is not formatted as code blocks.
+</ParamField>
+
+<ParamField path="showProgress" type="bool" default="false">
+  When `true`, writes a per-page progress indicator to the console.
+</ParamField>
+
+<ParamField path="forceText" type="bool" default="true">
+  When `true`, extracts text from regions classified as picture areas by the layout engine.
+</ParamField>
+
+<ParamField path="ocrDpi" type="int" default="300">
+  Resolution for OCR page rendering. Only relevant when `useOcr` or `forceOcr` is `true`.
+</ParamField>
+
+<ParamField path="useOcr" type="bool" default="true">
+  When `true`, applies OCR to pages the layout engine identifies as candidates.
+</ParamField>
+
+<ParamField path="ocrLanguage" type="string" default='"eng"'>
+  Tesseract language code for OCR. Use `+` to combine multiple languages.
+</ParamField>
+
+<ParamField path="tableFormat" type="string" default='"grid"'>
+  Controls how detected tables are rendered in plain text output.
+
+  | Value | Description |
+  |---|---|
+  | `"grid"` | ASCII grid with borders on all sides. Default. |
+  | `"plain"` | Whitespace-aligned columns, no borders. |
+  | `"pipe"` | Markdown-style pipe table (same as `ToMarkdown` output). |
+
+</ParamField>
+
+<ParamField path="pageChunks" type="bool" default="false">
+  When `true`, returns a JSON string containing an array of per-page objects rather than a single concatenated string.
+</ParamField>
+
+<ParamField path="tableMaxWidth" type="int" default="100">
+  Maximum character width of the rendered table. Columns are wrapped or truncated to fit within this limit. Only relevant when `tableFormat` is `"grid"` or `"plain"`.
+</ParamField>
+
+<ParamField path="tableMinColWidth" type="int" default="10">
+  Minimum character width of any single table column. Prevents columns from collapsing to unusably narrow widths.
+</ParamField>
+
+<ParamField path="forceOcr" type="bool" default="false">
+  When `true`, applies OCR to every page unconditionally.
+</ParamField>
+
+<ParamField path="ocrFunction" type="OcrPageFunction?" default="null">
+  Custom OCR delegate. When `null`, Tesseract is used.
+</ParamField>
+
+### Returns
+
+When `pageChunks` is `false` (default): a single `string` of plain text covering all processed pages.
+
+When `pageChunks` is `true`: a JSON `string` containing an array of per-page plain text objects.
+
+### Exceptions
+
+| Exception | Condition |
+|---|---|
+| `ArgumentException` | `path` is null or whitespace. |
+| `NotSupportedException` | `PdfExtractor.UseLayout` is `false`. `ToText` requires layout mode. |
+| `FileNotFoundException` | `path` does not exist. |
+| `MuPdfException` | The file is not a valid or readable PDF. |
+| `TesseractNotFoundException` | `useOcr` or `forceOcr` is `true` but Tesseract is not on the `PATH`. |
+
+---
+
+## ParseDocument
+
+Parses a PDF and returns a typed `ParsedDocument` object — the full layout structure as a .NET object graph rather than a serialised string. The in-process equivalent of `ToJson`.
+
+### Signatures
+
+```csharp
+public static ParsedDocument ParseDocument(
+    Document          doc,
+    string            filename     = "",
+    int               imageDpi     = 150,
+    string            imageFormat  = "png",
+    string            imagePath    = "",
+    int               ocrDpi       = 300,
+    List<int>?        pages        = null,
+    bool              writeImages  = false,
+    bool              embedImages  = false,
+    bool              showProgress = false,
+    bool              forceText    = true,
+    bool              useOcr       = true,
+    string            ocrLanguage  = "eng",
+    bool              forceOcr     = false,
+    bool              keepOcrText  = false,
+    OcrPageFunction?  ocrFunction  = null
+);
+```
+
+<Tip>
+  `ParseDocument` does not have a file path overload — it always requires an open `Document`. Open the document with `new Document(path)` and close it when done.
+</Tip>
+
+### Parameters
+
+All parameters are identical to `ToJson` with two additions:
+
+<ParamField path="keepOcrText" type="bool" default="false">
+  When `true`, preserves the raw Tesseract OCR output text alongside the layout analysis results in the returned `ParsedDocument`. Useful for debugging OCR quality on specific pages.
+</ParamField>
+
+All other parameters (`imageDpi`, `imageFormat`, `imagePath`, `ocrDpi`, `pages`, `writeImages`, `embedImages`, `showProgress`, `forceText`, `useOcr`, `ocrLanguage`, `forceOcr`, `ocrFunction`) behave identically to their counterparts in [`ToJson`](#tojson).
+
+### Returns
+
+`ParsedDocument` — A typed .NET object containing one `ParsedPage` per processed page. See [ParsedDocument reference](/api-reference/parsed-document) for the full type hierarchy.
+
+### Exceptions
+
+| Exception | Condition |
+|---|---|
+| `NotSupportedException` | `PdfExtractor.UseLayout` is `false`. `ParseDocument` requires layout mode. |
+| `MuPdfException` | The document is not a valid or readable PDF. |
+| `TesseractNotFoundException` | `useOcr` or `forceOcr` is `true` but Tesseract is not on the `PATH`. |
+
+---
+
+## LlamaMarkdownReader
+
+Returns a `PDFMarkdownReader` instance that provides a LlamaIndex-compatible document loading interface. Each page of a loaded PDF is returned as a separate `LlamaDocument` with Markdown text and a metadata dictionary.
+
+### Signature
+
+```csharp
+public static PDFMarkdownReader LlamaMarkdownReader(
+    Func<Dictionary<string, object>, Dictionary<string, object>>? metaFilter = null
+);
+```
+
+### Parameters
+
+<ParamField path="metaFilter" type="Func<Dictionary<string, object>, Dictionary<string, object>>?" default="null">
+  An optional delegate that receives each page's metadata dictionary before it is attached to the `LlamaDocument` and returns a (potentially modified) replacement. Use to add, rename, or remove metadata fields for all pages in a single place.
+
+  ```csharp
+  var reader = PdfExtractor.LlamaMarkdownReader(metaFilter: meta =>
+  {
+      meta["source"] = "annual-report-2024";
+      meta.Remove("file_path"); // strip internal path
+      return meta;
+  });
+  ```
+</ParamField>
+
+### Returns
+
+`PDFMarkdownReader` — Call `.LoadData()` on the result to load a PDF. See [PDFMarkdownReader reference](/api-reference/pdf-markdown-reader) for full documentation.
+
+---
+
+## GetKeyValues
+
+Extracts all interactive AcroForm field names, values, and page locations from a PDF. Returns an empty dictionary for PDFs that do not contain form fields.
+
+### Signatures
+
+```csharp
+public static Dictionary<string, Dictionary<string, object>> GetKeyValues(
+    Document doc,
+    bool     xrefs = false
+);
+
+public static Dictionary<string, Dictionary<string, object>> GetKeyValues(
+    Document                    doc,
+    bool                        xrefs,
+    IReadOnlyCollection<string> ignoredKeywordArgumentNames
+);
+```
+
+### Parameters
+
+<ParamField path="doc" type="MuPDF.NET.Document" required>
+  An open MuPDF.NET `Document`. `GetKeyValues` does not have a file path overload.
+</ParamField>
+
+<ParamField path="xrefs" type="bool" default="false">
+  When `true`, includes PDF cross-reference numbers (`xref`) for each field in the returned metadata. Useful for low-level PDF manipulation workflows that need to locate field objects by their internal identifier.
+</ParamField>
+
+<ParamField path="ignoredKeywordArgumentNames" type="IReadOnlyCollection<string>?" default="null">
+  When provided, any names in this collection are logged to the console as a warning. This overload exists for compatibility with callers that pass unsupported keyword arguments — it delegates to the two-parameter overload after logging the warning.
+</ParamField>
+
+### Returns
+
+`Dictionary<string, Dictionary<string, object>>` — A dictionary keyed by field name. Each value is a nested dictionary of field properties.
+
+Returns an empty dictionary if the document contains no AcroForm fields (`doc.IsFormPDF == 0`).
+
+The nested dictionary for each field typically contains:
+
+| Key | Type | Description |
+|---|---|---|
+| `"value"` | `string` | The field's current value. Empty string if unfilled. |
+| `"page"` | `int` | Zero-based page number where the field appears. |
+| `"xref"` | `int` | PDF cross-reference number. Only present when `xrefs: true`. |
+
+### Exceptions
+
+| Exception | Condition |
+|---|---|
+| `MuPdfException` | The document is not a valid or readable PDF. |
+
+### Example
+
+```csharp
+Document doc    = new Document("application.pdf");
+var      fields = PdfExtractor.GetKeyValues(doc);
+doc.Close();
+
+foreach (var (name, props) in fields)
+{
+    string value = props["value"]?.ToString() ?? "";
+    int    page  = (int)props["page"];
+    Console.WriteLine($"[Page {page}] {name}: {value}");
+}
+```
+
+---
+
+## Parameters quick reference
+
+| Parameter | `ToMarkdown` | `ToJson` | `ToText` | `ParseDocument` |
+|---|:---:|:---:|:---:|:---:|
+| `doc` / `path` | ✓ | ✓ | ✓ | `doc` only |
+| `pages` | ✓ | ✓ | ✓ | ✓ |
+| `header` | ✓ | ✗ | ✓ | ✗ |
+| `footer` | ✓ | ✗ | ✓ | ✗ |
+| `writeImages` | ✓ | ✓ | ✗ | ✓ |
+| `embedImages` | ✓ | ✓ | ✗ | ✓ |
+| `imagePath` | ✓ | ✓ | ✗ | ✓ |
+| `imageFormat` | ✓ | ✓ | ✗ | ✓ |
+| `dpi` / `imageDpi` | ✓ | ✓ | ✗ | ✓ |
+| `ocrDpi` | ✓ | ✓ | ✓ | ✓ |
+| `useOcr` | ✓ | ✓ | ✓ | ✓ |
+| `forceOcr` | ✓ | ✓ | ✓ | ✓ |
+| `ocrLanguage` | ✓ | ✓ | ✓ | ✓ |
+| `ocrFunction` | ✓ | ✓ | ✓ | ✓ |
+| `forceText` | ✓ | ✓ | ✓ | ✓ |
+| `showProgress` | ✓ | ✓ | ✓ | ✓ |
+| `filename` | ✓ | ✗ | ✓ | ✓ |
+| `pageChunks` | ✓ | ✗ | ✓ | ✗ |
+| `pageSeparators` | ✓ | ✗ | ✗ | ✗ |
+| `ignoreCode` | ✓ | ✗ | ✓ | ✗ |
+| `pageWidth` | ✓ | ✗ | ✗ | ✗ |
+| `pageHeight` | ✓ | ✗ | ✗ | ✗ |
+| `tableFormat` | ✗ | ✗ | ✓ | ✗ |
+| `tableMaxWidth` | ✗ | ✗ | ✓ | ✗ |
+| `tableMinColWidth` | ✗ | ✗ | ✓ | ✗ |
+| `keepOcrText` | ✗ | ✗ | ✗ | ✓ |

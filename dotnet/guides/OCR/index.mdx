@@ -1,0 +1,394 @@
+---
+title: OCR
+description: Use Tesseract OCR to extract text from scanned PDFs, image-based pages, and documents where native text selection returns nothing useful.
+icon: "eye"
+---
+
+# Overview
+
+Most PDFs contain selectable text — characters stored as font glyphs with known positions. PDF4LLM extracts these directly, without OCR, at high speed.
+
+Some PDFs don't. A document scanned on a photocopier, a fax saved as PDF, or a report exported from a system that rasterises each page before writing it — these contain no machine-readable text at all. Every page is just an image. Native extraction returns empty strings.
+
+For these documents, PDF4LLM can invoke Tesseract OCR before running layout analysis. Pass `useOcr: true` to any extraction method and Tesseract will read the text from each page image before it is converted to Markdown, plain text, or JSON.
+
+---
+
+## Prerequisites
+
+OCR requires Tesseract to be installed on the host system and available on the `PATH`. PDF4LLM does not bundle Tesseract.
+
+### Windows
+
+Download and run the installer from the [UB Mannheim Tesseract builds](https://github.com/UB-Mannheim/tesseract/wiki) — the most actively maintained Windows distribution. During installation, select any additional language packs you need.
+
+After installation, add the Tesseract directory to your `PATH`:
+
+```
+C:\Program Files\Tesseract-OCR
+```
+
+Verify the installation:
+
+```powershell
+tesseract --version
+```
+
+### macOS
+
+```bash
+brew install tesseract
+
+# With additional language packs
+brew install tesseract-lang
+```
+
+### Linux (Debian / Ubuntu)
+
+```bash
+sudo apt-get install tesseract-ocr
+
+# Add language packs individually
+sudo apt-get install tesseract-ocr-fra   # French
+sudo apt-get install tesseract-ocr-deu   # German
+sudo apt-get install tesseract-ocr-chi-sim  # Simplified Chinese
+```
+
+### Verify Tesseract is on the PATH
+
+PDF4LLM calls Tesseract as a subprocess. If Tesseract is installed but not on the `PATH`, you will get a `TesseractNotFoundException` at runtime. Confirm it is reachable from the process running your application:
+
+```bash
+tesseract --version
+# Should print: tesseract x.x.x
+```
+
+If running under a service account or in a Docker container, ensure the Tesseract binary is accessible from the application's environment — not just your interactive shell.
+
+---
+
+## Basic usage
+
+Pass `useOcr: true` to `ToMarkdown`, `ToText`, or `ParseDocument`:
+
+```csharp
+using MuPDF.NET;
+using PDF4LLM;
+
+Document doc = new Document("scanned-report.pdf");
+
+string markdown = PdfExtractor.ToMarkdown(doc, useOcr: true);
+
+doc.Close();
+```
+
+The same flag works across all three extraction methods:
+
+```csharp
+// Markdown
+string markdown = PdfExtractor.ToMarkdown(doc, useOcr: true);
+
+// Plain text
+string text = PdfExtractor.ToText(doc, useOcr: true);
+
+// Structured object model
+ParsedDocument parsed = PdfExtractor.ParseDocument(doc, useOcr: true);
+```
+
+OCR output goes through the same layout analysis as native text — reading order, heading detection, table detection — before being converted to your chosen format.
+
+---
+
+## Specifying a language
+
+Tesseract uses language-specific data files to improve recognition accuracy. The default is English (`"eng"`). Pass a Tesseract language code to `ocrLanguage` for other languages:
+
+```csharp
+// French
+string markdown = PdfExtractor.ToMarkdown(doc, useOcr: true, ocrLanguage: "fra");
+
+// German
+string markdown = PdfExtractor.ToMarkdown(doc, useOcr: true, ocrLanguage: "deu");
+
+// Japanese
+string markdown = PdfExtractor.ToMarkdown(doc, useOcr: true, ocrLanguage: "jpn");
+
+// Simplified Chinese
+string markdown = PdfExtractor.ToMarkdown(doc, useOcr: true, ocrLanguage: "chi_sim");
+
+// Traditional Chinese
+string markdown = PdfExtractor.ToMarkdown(doc, useOcr: true, ocrLanguage: "chi_tra");
+```
+
+The language data file for each language must be installed on the host system. If the language pack is missing, Tesseract will fall back to English or throw an error depending on the version.
+
+### Common Tesseract language codes
+
+| Language | Code | Language | Code |
+|---|---|---|---|
+| English | `eng` | Russian | `rus` |
+| French | `fra` | Arabic | `ara` |
+| German | `deu` | Hindi | `hin` |
+| Spanish | `spa` | Japanese | `jpn` |
+| Italian | `ita` | Korean | `kor` |
+| Portuguese | `por` | Simplified Chinese | `chi_sim` |
+| Dutch | `nld` | Traditional Chinese | `chi_tra` |
+| Polish | `pol` | Turkish | `tur` |
+
+The full list of available language codes is maintained in the [Tesseract documentation](https://tesseract-ocr.github.io/tessdoc/Data-Files-in-different-versions.html).
+
+### Multi-language documents
+
+If a document contains text in more than one language on the same page, pass a `+`-separated list of language codes:
+
+```csharp
+// English and French mixed on the same page
+string markdown = PdfExtractor.ToMarkdown(
+    doc,
+    useOcr: true,
+    ocrLanguage: "eng+fra"
+);
+```
+
+Using multiple languages increases recognition time and can reduce accuracy when the languages use very different character sets. Use multi-language mode only when the document genuinely mixes languages on the same page. For documents where different pages use different languages, restrict OCR to each language on its own set of pages using the `pages` parameter.
+
+---
+
+## Performance
+
+OCR is significantly slower than native text extraction. Tesseract rasterises each page to an image and runs a trained neural network over it — this typically takes 1–5 seconds per page depending on page dimensions, resolution, and hardware, compared to milliseconds for native extraction.
+
+For a 200-page scanned document, OCR may take 5–15 minutes. Plan for this in your pipeline.
+
+### Process only the pages that need OCR
+
+The most impactful optimisation is to apply OCR only to pages that actually need it. Many documents are partially scanned — a cover page or appendix may be a rasterised image while the body contains selectable text.
+
+Identify scanned pages by checking whether native extraction returns useful content:
+
+```csharp
+Document doc          = new Document("mixed-document.pdf");
+var      scannedPages = new List<int>();
+
+for (int i = 0; i < doc.PageCount; i++)
+{
+    // Quick native probe — fast, no OCR
+    string native = PdfExtractor.ToText(doc, pages: new List<int> { i });
+
+    // If the page has very little native text, it is likely a scanned image
+    if (native.Trim().Length < 50)
+        scannedPages.Add(i);
+}
+
+// Run OCR only on the pages that need it
+string ocrMarkdown = scannedPages.Count > 0
+    ? PdfExtractor.ToMarkdown(doc, pages: scannedPages, useOcr: true)
+    : string.Empty;
+
+// Run native extraction on the remaining pages
+var nativePages = Enumerable.Range(0, doc.PageCount)
+    .Except(scannedPages)
+    .ToList();
+
+string nativeMarkdown = nativePages.Count > 0
+    ? PdfExtractor.ToMarkdown(doc, pages: nativePages)
+    : string.Empty;
+
+doc.Close();
+```
+
+Adjust the character threshold (`< 50`) to your documents. Pages with only a page number or a short chapter title will score low on native extraction — tune conservatively to avoid classifying lightly-populated text pages as scanned.
+
+### Process pages in parallel
+
+For large all-scanned documents, parallelise across pages. Each call to `ToMarkdown` with a single-page `pages` list is independent:
+
+```csharp
+Document doc       = new Document("large-scanned.pdf");
+int      pageCount = doc.PageCount;
+var      results   = new string[pageCount];
+
+await Parallel.ForEachAsync(
+    Enumerable.Range(0, pageCount),
+    new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount },
+    async (pageIndex, ct) =>
+    {
+        results[pageIndex] = PdfExtractor.ToMarkdown(
+            doc,
+            pages:       new List<int> { pageIndex },
+            useOcr:      true,
+            ocrLanguage: "eng"
+        );
+    }
+);
+
+doc.Close();
+
+string fullMarkdown = string.Join("\n\n---\n\n", results);
+```
+
+<Callout type="warning">
+Confirm whether your version of MuPDF.NET supports concurrent access to a shared `Document` object before using this pattern. If it does not, open a separate `Document` per task using the file path overload to avoid race conditions.
+</Callout>
+
+### Show progress for long runs
+
+For documents where OCR will take a noticeable amount of time, enable progress reporting:
+
+```csharp
+string markdown = PdfExtractor.ToMarkdown(
+    doc,
+    useOcr:       true,
+    showProgress: true
+);
+```
+
+---
+
+## Mixed documents
+
+A mixed document contains both selectable text pages and scanned image pages. The pattern below produces a single Markdown string in page order, using native extraction where possible and OCR where not:
+
+```csharp
+Document doc           = new Document("mixed.pdf");
+var      markdownParts = new List<(int Page, string Content)>();
+
+for (int i = 0; i < doc.PageCount; i++)
+{
+    string native = PdfExtractor.ToText(doc, pages: new List<int> { i });
+
+    string content = native.Trim().Length >= 50
+        ? PdfExtractor.ToMarkdown(doc, pages: new List<int> { i })
+        : PdfExtractor.ToMarkdown(doc, pages: new List<int> { i }, useOcr: true);
+
+    markdownParts.Add((i, content));
+}
+
+doc.Close();
+
+string fullMarkdown = string.Join(
+    "\n\n---\n\n",
+    markdownParts.OrderBy(p => p.Page).Select(p => p.Content)
+);
+```
+
+This calls `ToText` once per page as a cheap probe — native extraction is fast — then calls `ToMarkdown` with the appropriate setting. The total cost is one native-speed pass over every page plus OCR only on the pages that require it.
+
+---
+
+## OCR accuracy
+
+Tesseract accuracy depends heavily on the quality of the input image. Several factors affect results.
+
+**Resolution** — Tesseract is trained on 300 DPI images. Scans below 200 DPI produce noticeably worse results, especially for small or condensed text. If you control the scanning process, scan at 300 DPI minimum.
+
+**Skew** — Pages rotated even a few degrees during scanning significantly reduce accuracy. Most modern scanners de-skew automatically; if yours doesn't, apply de-skewing pre-processing before extraction.
+
+**Noise and artefacts** — Coffee stains, smudges, fax compression artefacts, and paper grain all reduce accuracy. These cannot be corrected within PDF4LLM. Apply image pre-processing — binarisation, noise removal, contrast enhancement — to extracted page images before passing them to Tesseract if accuracy is critical for your use case.
+
+**Font type** — Tesseract performs best on standard serif and sans-serif fonts. Handwriting, decorative fonts, and highly stylised typefaces are recognised poorly and should not be expected to produce reliable output.
+
+**Language selection** — Using the wrong language model reduces accuracy even for text that looks superficially similar between languages. Always set `ocrLanguage` to match the document language.
+
+### Diagnosing poor accuracy
+
+Use `ToText` with OCR to inspect raw recognition output without the added complexity of Markdown formatting:
+
+```csharp
+string rawOcrText = PdfExtractor.ToText(
+    doc,
+    pages:  new List<int> { suspectPageIndex },
+    useOcr: true
+);
+Console.WriteLine(rawOcrText);
+```
+
+Common misrecognition patterns and their likely causes:
+
+| What you see | Likely cause |
+|---|---|
+| `l` / `1` / `I` confusion | Low resolution or thin font strokes |
+| `0` / `O` confusion | Low resolution or sans-serif font at small size |
+| Missing spaces between words | Page DPI below 200 or high background noise |
+| Garbled non-Latin characters | Wrong `ocrLanguage` or missing language pack |
+| Entire paragraphs absent | Region classified as an image, not a text block |
+| Correct words in wrong order | Multi-column layout not linearised correctly post-OCR |
+
+---
+
+## OCR in containerised environments
+
+When running PDF4LLM in Docker or a CI pipeline, Tesseract must be present in the container image. Add it to your `Dockerfile`:
+
+```dockerfile
+FROM mcr.microsoft.com/dotnet/runtime:8.0
+
+# Install Tesseract and the English language data pack
+RUN apt-get update && apt-get install -y \
+    tesseract-ocr \
+    tesseract-ocr-eng \
+    && rm -rf /var/lib/apt/lists/*
+
+# Add additional language packs as needed
+# RUN apt-get install -y tesseract-ocr-fra tesseract-ocr-deu
+
+WORKDIR /app
+COPY --from=build /app/publish .
+
+ENTRYPOINT ["dotnet", "MyApp.dll"]
+```
+
+Verify Tesseract is on the PATH inside the built image:
+
+```bash
+docker run --rm your-image tesseract --version
+```
+
+### Tessdata path
+
+Tesseract looks for language data files in the directory specified by the `TESSDATA_PREFIX` environment variable, or in the default system location (`/usr/share/tesseract-ocr/*/tessdata/` on Debian/Ubuntu). If you install language data files to a custom location, set the variable explicitly in your `Dockerfile`:
+
+```dockerfile
+ENV TESSDATA_PREFIX=/usr/share/tesseract-ocr/4.00/tessdata/
+```
+
+---
+
+## Troubleshooting
+
+**`TesseractNotFoundException` at runtime**
+Tesseract is not on the `PATH` for the process running your application. Verify with `tesseract --version` in the same environment — not just your interactive shell. In Docker, check with `docker run --rm your-image tesseract --version`.
+
+**Empty or near-empty output despite `useOcr: true`**
+The pages may already contain selectable text that is being extracted natively without invoking OCR. Run `ToText` without `useOcr` first and check whether content is returned. If OCR is invoked but still returns nothing, the scan DPI is likely very low — check the source image resolution.
+
+**Garbled or nonsensical text**
+The most common cause is a mismatched `ocrLanguage`. Confirm the document language and set the correct Tesseract code. For non-Latin scripts (Arabic, CJK, Devanagari), ensure the appropriate language pack is installed and the correct code is used.
+
+**OCR is extremely slow**
+Processing time scales linearly with page count. Use the page-filtering pattern to restrict OCR to only scanned pages. For bulk pipelines, distribute work across multiple workers rather than processing large documents serially.
+
+**Tables in scanned documents are not being detected**
+Table detection from OCR output relies on the spatial alignment of recognised character positions, which is less reliable than detecting tables in native PDF text. For scanned documents with critical table data, inspect `ToJson` output to see how the blocks were classified, and consider building a custom table renderer from `ParseDocument` for these cases.
+
+**Language pack missing error from Tesseract**
+Install the required pack for your platform. Debian/Ubuntu: `sudo apt-get install tesseract-ocr-{code}`. macOS: `brew install tesseract-lang`. Windows: re-run the Tesseract installer and select the language from the component list.
+
+---
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Tables" icon="table" href="/dotnet/guides/tables">
+    Table extraction explained.
+  </Card>
+  <Card title="Page Selection" icon="file-magnifying-glass" href="/dotnet/guides/page-selection">
+    Process only specific pages to speed up OCR-heavy documents.
+  </Card>
+  <Card title="Installation" icon="circle-down" href="/dotnet/getting-started/installation#optional-ocr-support">
+    Install Tesseract and the OCR optional dependency.
+  </Card>
+  <Card title="Images & Graphics" icon="image" href="/dotnet/guides/images-and-graphics">
+    Extract embedded images alongside OCR'd text.
+  </Card>
+</CardGroup>

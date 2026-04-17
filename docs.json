@@ -30,7 +30,7 @@
         },
         {
           "anchor": "GitHub",
-          "href": "https://github.com/pymupdf/pymupdf4llm",
+          "href": "/github",
           "icon": "github"
         },
         {
@@ -39,8 +39,13 @@
           "icon": "python"
         },
         {
+          "anchor": "NuGet",
+          "href": "https://www.nuget.org/packages/PDF4LLM/",
+          "icon": "microsoft"
+        },
+        {
           "anchor": "Discord",
-          "href": "https://discord.gg/TaHAjaEVWS",
+          "href": "https://pymupdf.pro/discord/4llm",
           "icon": "discord"
         },
         {
@@ -91,6 +96,39 @@
               "python/reference/chunk-schema",
               "python/reference/JSON-schema",
               "python/reference/changelog"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": ".NET",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "dotnet/getting-started/installation/index",
+              "dotnet/getting-started/quickstart/index",
+              "dotnet/getting-started/supported-formats/index"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "dotnet/guides/extract-Markdown/index",
+              "dotnet/guides/extract-JSON/index",
+              "dotnet/guides/extract-Text/index",
+              "dotnet/guides/images-and-graphics/index",
+              "dotnet/guides/tables/index",
+              "dotnet/guides/page-selection/index",
+              "dotnet/guides/saving-output/index",
+              "dotnet/guides/OCR/index",
+              "dotnet/guides/OCR/tesseract-language-packs"
+            ]
+          },
+          {
+            "group": "Reference",
+            "pages": [
+              "dotnet/api/index"
             ]
           }
         ]

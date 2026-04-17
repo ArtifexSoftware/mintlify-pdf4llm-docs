@@ -1,0 +1,242 @@
+---
+title: Page Selection
+description: Use the pages parameter to extract content from specific pages rather than processing an entire document.
+icon: "hand"
+---
+
+## Overview
+
+By default, PDF4LLM processes every page in a document. The `pages` parameter lets you specify exactly which pages to extract — as a `List<int>` of zero-based page indices. It is supported by `ToMarkdown()`, `ToJson()`, and `ToText()`.
+
+```csharp
+using PDF4LLM;
+
+// Extract only the first three pages
+string mdText = PdfExtractor.ToMarkdown("document.pdf", pages: new List<int> { 0, 1, 2 });
+```
+
+---
+
+## Zero-based indexing
+
+Page numbers in PDF4LLM are **zero-based** — the first page of a document is page `0`, the second is page `1`, and so on.
+
+| Document page | `pages` index |
+|---|---|
+| Page 1 | `0` |
+| Page 2 | `1` |
+| Page 10 | `9` |
+| Last page | `n - 1` |
+
+<Warning>
+  Passing a page index that doesn't exist in the document will raise an exception. Always check the document's page count (`doc.PageCount`) before constructing a dynamic page list.
+</Warning>
+
+---
+
+## Common patterns
+
+### First N pages
+
+```csharp
+int n       = 5;
+var pages   = Enumerable.Range(0, n).ToList();
+string mdText = PdfExtractor.ToMarkdown("document.pdf", pages: pages);
+```
+
+### Last N pages
+
+```csharp
+using MuPDF.NET;
+
+Document doc       = new Document("document.pdf");
+int      pageCount = doc.PageCount;
+
+var lastFive = Enumerable.Range(pageCount - 5, 5).ToList();
+string mdText = PdfExtractor.ToMarkdown(doc, pages: lastFive);
+
+doc.Close();
+```
+
+### A specific range
+
+```csharp
+// Pages 10–19 (zero-based)
+var pages   = Enumerable.Range(10, 10).ToList();
+string mdText = PdfExtractor.ToMarkdown("document.pdf", pages: pages);
+```
+
+### Non-contiguous pages
+
+```csharp
+// Cover page, table of contents, and appendix
+string mdText = PdfExtractor.ToMarkdown(
+    "document.pdf",
+    pages: new List<int> { 0, 1, 47, 48, 49 }
+);
+```
+
+### Every other page
+
+```csharp
+// Even pages only (0, 2, 4, ...)
+var evenPages = Enumerable.Range(0, 50)
+                          .Where(i => i % 2 == 0)
+                          .ToList();
+
+string mdText = PdfExtractor.ToMarkdown("document.pdf", pages: evenPages);
+```
+
+---
+
+## Getting the page count
+
+Open a `Document` to inspect the page count before building your `pages` list:
+
+```csharp
+using MuPDF.NET;
+using PDF4LLM;
+
+Document doc       = new Document("document.pdf");
+int      pageCount = doc.PageCount;
+
+Console.WriteLine($"Total pages: {pageCount}");
+
+// Extract the second half of the document
+int midpoint = pageCount / 2;
+var pages    = Enumerable.Range(midpoint, pageCount - midpoint).ToList();
+
+string mdText = PdfExtractor.ToMarkdown(doc, pages: pages);
+doc.Close();
+```
+
+---
+
+## Page selection with per-page chunks
+
+When using `LlamaMarkdownReader`, the returned list will only contain chunks for the pages you specify if you pre-filter the results. Each chunk's `ExtraInfo` preserves the original page number from the document:
+
+```csharp
+using PDF4LLM;
+
+var reader    = PdfExtractor.LlamaMarkdownReader();
+var allChunks = reader.LoadData("document.pdf");
+
+// Filter to pages 4, 5, and 6 after loading
+var chunks = allChunks
+    .Where(c => new[] { 4, 5, 6 }.Contains((int)c.ExtraInfo["page"]))
+    .ToList();
+
+foreach (var chunk in chunks)
+{
+    int page = (int)chunk.ExtraInfo["page"];
+    Console.WriteLine($"Page {page}: {chunk.Text.Length} chars");
+}
+// Page 4: 1842 chars
+// Page 5: 2103 chars
+// Page 6: 987 chars
+```
+
+<Tip>
+  The `page` value in `ExtraInfo` reflects the **original document page number**, not the position in the returned list. Page 4 in the document is always reported as `4`, regardless of how many pages were skipped.
+</Tip>
+
+---
+
+## Page selection with ToJson() and ToText()
+
+The `pages` parameter works identically across all three extraction methods:
+
+```csharp
+// JSON output — specific pages only
+string json = PdfExtractor.ToJson("document.pdf", pages: new List<int> { 0, 1, 2 });
+
+// Plain text — specific pages only
+string text = PdfExtractor.ToText("document.pdf", pages: new List<int> { 0, 1, 2 });
+```
+
+---
+
+## Processing a document in batches
+
+For very large documents, process pages in batches to manage memory usage:
+
+```csharp
+using MuPDF.NET;
+using PDF4LLM;
+using System.IO;
+
+Document doc       = new Document("large-document.pdf");
+int      batchSize = 20;
+var      results   = new List<string>();
+
+for (int start = 0; start < doc.PageCount; start += batchSize)
+{
+    int count = Math.Min(batchSize, doc.PageCount - start);
+    var batch = Enumerable.Range(start, count).ToList();
+
+    Console.WriteLine($"Processing pages {batch.First()}–{batch.Last()}...");
+
+    string chunk = PdfExtractor.ToMarkdown(doc, pages: batch);
+    results.Add(chunk);
+}
+
+doc.Close();
+
+string fullText = string.Join("\n\n", results);
+File.WriteAllText("output.md", fullText, System.Text.Encoding.UTF8);
+
+Console.WriteLine($"Done. {doc.PageCount} pages processed.");
+```
+
+---
+
+## Skipping blank or cover pages
+
+Combine page selection with a quick content check to skip pages that return no meaningful text:
+
+```csharp
+using MuPDF.NET;
+using PDF4LLM;
+
+Document doc      = new Document("document.pdf");
+var      nonBlank = new List<int>();
+
+for (int i = 0; i < doc.PageCount; i++)
+{
+    // Quick native probe — fast, no OCR
+    string native = PdfExtractor.ToText(doc, pages: new List<int> { i });
+    if (native.Trim().Length > 0)
+        nonBlank.Add(i);
+}
+
+Console.WriteLine($"{nonBlank.Count} of {doc.PageCount} pages contain text");
+
+string mdText = PdfExtractor.ToMarkdown(doc, pages: nonBlank);
+doc.Close();
+```
+
+---
+
+<Note>
+  The `pages` parameter is supported by `ToMarkdown()`, `ToJson()`, and `ToText()`. For full API signatures see the [API reference](/dotnet/api/pdf-extractor).
+</Note>
+
+---
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Saving Output" icon="floppy-disk" href="/dotnet/guides/saving-output">
+    Write extracted pages to .md, .json, and .txt files.
+  </Card>
+  <Card title="Extract Markdown" icon="markdown" href="/dotnet/guides/extract-markdown">
+    Full walkthrough of ToMarkdown() with all common options.
+  </Card>
+  <Card title="Extract JSON" icon="brackets-curly" href="/dotnet/guides/extract-json">
+    Bounding boxes and layout data for custom pipelines.
+  </Card>
+  <Card title="OCR" icon="eye" href="/dotnet/guides/ocr">
+    Process scanned pages with Tesseract OCR.
+  </Card>
+</CardGroup>

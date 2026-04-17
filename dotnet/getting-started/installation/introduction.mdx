@@ -1,0 +1,126 @@
+---
+title: Overview
+description: What PDF4LLM is, what problems it solves, and how it fits into .NET RAG pipelines.
+---
+
+# PDF4LLM for .NET
+
+PDF4LLM is a .NET library for extracting content from PDF documents in formats optimised for large language models and retrieval-augmented generation (RAG) pipelines. It converts PDFs to Markdown, plain text, or structured JSON — with layout awareness, OCR support, and a LlamaIndex-compatible reader — all built on top of [MuPDF.NET](https://www.nuget.org/packages/MuPDF.NET).
+
+```bash
+dotnet add package PDF4LLM
+```
+
+---
+
+## The problem it solves
+
+PDFs are the dominant format for technical documents, reports, contracts, research papers, and manuals. But PDFs are not designed for machine reading. Their internal structure describes *visual* layout — character positions, font sizes, drawing instructions — not semantic content. Feeding raw PDF bytes to an LLM produces garbled output.
+
+What you actually need to feed an LLM is structured text: headings that reflect document hierarchy, tables that preserve row/column relationships, logical reading order across multi-column layouts, and images either embedded or referenced — all without the visual noise of page numbers, headers, and footers.
+
+PDF4LLM handles that conversion. It uses MuPDF's layout engine to analyse each page spatially, infer structure, and emit clean output your pipeline can consume directly.
+
+---
+
+## What PDF4LLM produces
+
+### Markdown
+
+The primary output format. Headers are inferred from font size and weight and emitted as `#` / `##` / `###` tags. Tables are rendered as GitHub-compatible Markdown tables. Bold, italic, and monospaced text are preserved. Multi-column pages are linearised into correct reading order.
+
+```csharp
+using MuPDF.NET;
+using PDF4LLM;
+
+Document doc = new Document("annual-report.pdf");
+string markdown = PdfExtractor.ToMarkdown(doc);
+doc.Close();
+```
+
+### Plain text
+
+The same layout analysis as Markdown, without any syntax characters. Useful when your downstream system handles its own formatting, or when Markdown characters would confuse your chunking logic.
+
+```csharp
+string text = PdfExtractor.ToText(doc);
+```
+
+### JSON layout
+
+A structured representation of every page: bounding boxes, block types (text, table, image), page dimensions, and content. Use this when you need to build custom output formats or inspect document structure programmatically.
+
+```csharp
+string json = PdfExtractor.ToJson(doc);
+```
+
+---
+
+## How it fits into a RAG pipeline
+
+A typical .NET RAG pipeline has three stages before retrieval: **extract**, **chunk**, and **embed**. PDF4LLM handles the extraction stage entirely, and gives you output that is already well-suited to chunking.
+
+```
+PDF file
+   │
+   ▼
+PDF4LLM (ToMarkdown / ToText / ParseDocument)
+   │  Layout-aware extraction, OCR, image handling
+   ▼
+Chunker
+   │  Split by heading, page, or token count
+   ▼
+Embedding model
+   │  text-embedding-3-small, ada-002, etc.
+   ▼
+Vector store
+   │  Qdrant, Pinecone, Azure AI Search, Chroma, etc.
+   ▼
+Retrieval + LLM
+```
+
+Because PDF4LLM preserves semantic structure (headings, tables, reading order), your chunks are more coherent and your retrieved passages are more useful than you would get from raw text extraction.
+
+---
+
+## Feature summary
+
+| Feature | Description |
+|---|---|
+| **Markdown conversion** | Layout-aware PDF-to-Markdown with headers, tables, and formatting |
+| **Plain text extraction** | Same analysis, no syntax — clean input for custom chunkers |
+| **JSON layout export** | Bounding boxes and block structure for custom processing |
+| **Structured document model** | `ParseDocument()` returns `ParsedDocument` with pages, boxes, tables, images |
+| **Image handling** | Write images to disk or embed as Base64 data URIs |
+| **OCR** | Tesseract-backed OCR for scanned or image-heavy pages |
+| **Page selection** | Process any subset of pages by 0-based index |
+| **LlamaIndex reader** | `PDFMarkdownReader` for LlamaIndex-style document loading |
+| **Form field extraction** | Key/value pairs and page locations from AcroForm PDFs |
+
+---
+
+## Relationship to PyMuPDF4LLM
+
+PDF4LLM for .NET mirrors [PyMuPDF4LLM](https://pymupdf.readthedocs.io/en/latest/pymupdf4llm/), the Python counterpart published by Artifex. The API is deliberately parallel — `ToMarkdown` maps to `to_markdown()`, `LlamaMarkdownReader` maps to `LlamaMarkdownReader()` — so teams working across both ecosystems will find the output structure consistent and the concepts transferable.
+
+---
+
+## Relationship to MuPDF.NET
+
+PDF4LLM is a higher-level library built on top of [MuPDF.NET](https://www.nuget.org/packages/MuPDF.NET), which provides the full low-level PDF API (rendering, annotation, editing, form manipulation, and more). If you need capabilities beyond LLM-oriented extraction, MuPDF.NET exposes them.
+
+PDF4LLM installs MuPDF.NET automatically as a dependency. You do not need to add both packages — see [Requirements & compatibility](/introduction/requirements) for details on the version bundling behaviour.
+
+---
+
+## Licensing
+
+PDF4LLM is available under the [Artifex Community License](https://github.com/ArtifexSoftware/MuPDF.NET/blob/main/LICENSE.md) for open-source and non-commercial use, and under a commercial license for commercial products. See [Licensing & commercial use](/advanced/licensing) for details, or [contact Artifex](https://artifex.com/contact/mupdf-net) to discuss a commercial agreement.
+
+---
+
+## Next steps
+
+- [Getting started](/introduction/getting-started) — install, open a document, run your first conversion
+- [Core concepts](/introduction/core-concepts) — output formats, layout analysis, and chunking explained
+- [API reference](/api-reference/pdf-extractor) — full method signatures and parameters

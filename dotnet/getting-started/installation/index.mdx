@@ -1,0 +1,139 @@
+---
+title: Installation
+description: Install PDF4LLM via NuGet, understand the MuPDF.NET dependency, and resolve the common assembly conflict.
+icon: "circle-down"
+---
+
+# Installation
+
+## NuGet package
+
+```bash
+dotnet add package PDF4LLM
+```
+
+Or via the Visual Studio Package Manager Console:
+
+```powershell
+Install-Package PDF4LLM
+```
+
+Or by adding the package reference directly to your `.csproj`:
+
+```xml
+<PackageReference Include="PDF4LLM" Version="*" />
+```
+
+---
+
+## Dependencies
+
+PDF4LLM depends on [MuPDF.NET](https://www.nuget.org/packages/MuPDF.NET) and lists it as a NuGet dependency. It is installed automatically — you do not need to add MuPDF.NET separately.
+
+After installation, two native DLLs are required at runtime:
+
+| File | Contents |
+|---|---|
+| `mupdfcpp64.dll` | The MuPDF C library with C++ bindings |
+| `mupdfcsharp.dll` | The C# bindings for MuPDF |
+
+The NuGet package copies these to your project's output directory on build. If your deployment environment does not allow automatic DLL placement, both files must be present in the same directory as your application executable, or on a path accessible via the `PATH` environment variable.
+
+---
+
+## Supported targets
+
+| Target framework | Supported |
+|---|---|
+| .NET 8.0 | ✓ |
+| .NET 7.0 | ✓ |
+| .NET 6.0 | ✓ |
+| .NET 5.0 | ✓ |
+| .NET Standard 2.0 | ✓ |
+| .NET Framework 4.8 | ✓ |
+| .NET Framework 4.7.2 | ✓ |
+| .NET Framework 4.6.1 | ✓ |
+
+PDF4LLM targets .NET Standard 2.0, making it compatible with any framework that implements that standard.
+
+---
+
+## Verify the installation
+
+Add a `using` directive and call `ToMarkdown` on any PDF to confirm everything is wired up:
+
+```csharp
+using MuPDF.NET;
+using PDF4LLM;
+
+string markdown = PdfExtractor.ToMarkdown("document.pdf");
+Console.WriteLine(markdown);
+```
+
+---
+
+## Resolving the assembly conflict
+
+If you see this error at build or runtime:
+
+```
+An assembly with the same simple name 'PDF4LLM' has already been imported
+```
+
+Your installed version of MuPDF.NET already bundles PDF4LLM internally. Having both packages referenced simultaneously causes the conflict.
+
+**Fix:** Remove the explicit `PDF4LLM` package reference and rely on the bundled version:
+
+```bash
+dotnet remove package PDF4LLM
+```
+
+Or remove the line from your `.csproj` manually:
+
+```xml
+<!-- Remove this line -->
+<PackageReference Include="PDF4LLM" Version="*" />
+```
+
+The API is identical either way — `using PDF4LLM;` and `PdfExtractor.*` work regardless of which package supplies the assembly.
+
+<Callout type="info">
+A future release of MuPDF.NET will stop bundling PDF4LLM, allowing both packages to coexist without conflict. Until then, use one or the other.
+</Callout>
+
+---
+
+## Optional: OCR support
+
+OCR is not required for most PDFs. Enable it only when working with scanned documents or pages that contain no selectable text.
+
+OCR requires [Tesseract](https://github.com/tesseract-ocr/tesseract) to be installed on the host system and available on the `PATH`. PDF4LLM does not bundle Tesseract.
+
+**Windows** — Download the installer from [UB Mannheim Tesseract builds](https://github.com/UB-Mannheim/tesseract/wiki) and add the install directory to your `PATH`.
+
+**macOS**
+
+```bash
+brew install tesseract
+```
+
+**Linux (Debian / Ubuntu)**
+
+```bash
+sudo apt-get install tesseract-ocr
+```
+
+Verify Tesseract is reachable:
+
+```bash
+tesseract --version
+```
+
+See the [OCR guide](/guides/ocr) for language pack installation and usage.
+
+---
+
+## Next steps
+
+- [Getting started](/introduction/getting-started) — open a document and run your first conversion
+- [Requirements & compatibility](/introduction/requirements) — .NET targets, MuPDF.NET versioning, and platform notes

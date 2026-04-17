@@ -1,0 +1,209 @@
+---
+title: ToMarkdown()
+description: Extract document content as a GitHub-compatible Markdown string.
+---
+
+## Signature
+
+```csharp
+public static string ToMarkdown(
+    Document   doc,
+    List<int>? pages        = null,
+    bool       writeImages  = false,
+    bool       embedImages  = false,
+    string     imagePath    = "",
+    string     imageFormat  = "png",
+    bool       useOcr       = false,
+    string     ocrLanguage  = "eng",
+    bool       showProgress = false,
+    bool       forceText    = false
+);
+
+public static string ToMarkdown(
+    string     filePath,
+    List<int>? pages        = null,
+    bool       writeImages  = false,
+    bool       embedImages  = false,
+    string     imagePath    = "",
+    string     imageFormat  = "png",
+    bool       useOcr       = false,
+    string     ocrLanguage  = "eng",
+    bool       showProgress = false,
+    bool       forceText    = false
+);
+```
+
+---
+
+## Parameters
+
+<ParamField path="doc" type="MuPDF.NET.Document" required>
+  An already-opened MuPDF.NET `Document` instance. Use this overload when calling multiple methods on the same file to avoid re-parsing. Close the document after all operations are complete.
+</ParamField>
+
+<ParamField path="filePath" type="string" required>
+  Path to a PDF file. This overload opens and closes the document internally. Use for single operations where you do not need to call multiple methods on the same file.
+</ParamField>
+
+<ParamField path="pages" type="List<int>?" default="null">
+  The pages to include in the output, specified as zero-based page numbers. Pages are processed in the order supplied — pass a reversed or reordered list to change the output sequence. If `null`, all pages are processed in document order.
+</ParamField>
+
+<ParamField path="writeImages" type="bool" default="false">
+  When `true`, images and vector graphic regions are extracted from the page and saved to disk at `imagePath`. Markdown image references are inserted inline at the corresponding positions in the output.
+
+  <Warning>
+    If your document contains text rendered on top of full-page background images, leave `writeImages` as `false` to ensure that text is extracted rather than captured as part of the image region.
+  </Warning>
+
+  Mutually exclusive with `embedImages`. If both are `true`, `embedImages` takes precedence and no files are written to disk.
+</ParamField>
+
+<ParamField path="embedImages" type="bool" default="false">
+  Like `writeImages`, but images are encoded as Base64 data URIs and embedded directly in the Markdown output — no files are written to disk. Takes precedence over `writeImages`. May significantly increase the size of the Markdown string for image-heavy documents.
+</ParamField>
+
+<ParamField path="imagePath" type="string" default='""'>
+  Directory in which to save extracted images. Relevant only when `writeImages` is `true`. Defaults to the process working directory if not set.
+
+  <Warning>
+    The directory must exist before calling `ToMarkdown()`. It will not be created automatically — a missing directory raises `DirectoryNotFoundException`. Create it first with `Directory.CreateDirectory(imagePath)`.
+  </Warning>
+</ParamField>
+
+<ParamField path="imageFormat" type="string" default='"png"'>
+  File format for extracted images, specified as a lowercase extension string. All MuPDF-supported output formats are accepted. Common values:
+
+  | Value | Description |
+  |---|---|
+  | `"png"` | Lossless. Best for diagrams, charts, and screenshots. Default. |
+  | `"jpg"` | Lossy. Smaller file size. Best for photographs. |
+  | `"webp"` | Good compression with broad browser support. |
+  | `"tiff"` | Lossless. Common in archival and OCR pre-processing pipelines. |
+
+  Only relevant when `writeImages` or `embedImages` is `true`.
+</ParamField>
+
+<ParamField path="useOcr" type="bool" default="false">
+  When `true`, applies Tesseract OCR to each page before layout analysis. Required for scanned or image-based pages that contain no selectable text. Tesseract must be installed and available on the `PATH`.
+
+  To verify Tesseract is reachable, run `tesseract --version` in the same environment as your application. See [OCR](/dotnet/guides/ocr) and [Tesseract Language Packs](/dotnet/guides/OCR/tesseract-language-packs) for setup instructions.
+</ParamField>
+
+<ParamField path="ocrLanguage" type="string" default='"eng"'>
+  Language code passed to the Tesseract OCR engine. Defaults to `"eng"` (English). Multiple languages can be combined with a `+` separator — for example, `"eng+fra"` for English and French. The corresponding Tesseract language data files must be installed before use.
+
+  Only relevant when `useOcr` is `true`. See [Tesseract Language Packs](/dotnet/guides/OCR/tesseract-language-packs) for installation instructions and a list of common language codes.
+</ParamField>
+
+<ParamField path="showProgress" type="bool" default="false">
+  When `true`, writes a per-page progress indicator to the console as pages are processed. Useful for monitoring long-running operations on large documents.
+</ParamField>
+
+<ParamField path="forceText" type="bool" default="false">
+  When `true`, extracts text from regions the layout engine classifies as pictures or image backgrounds. The extracted text appears after the image reference in the output. Useful for PDFs exported from presentation tools where text is layered over slide backgrounds.
+</ParamField>
+
+---
+
+## Returns
+
+<ResponseField name="string" type="string">
+  A single GitHub-compatible Markdown string containing the content of all processed pages, concatenated in order. Pages are separated by a horizontal rule (`---`). The string is UTF-8 compatible — specify `System.Text.Encoding.UTF8` when writing to disk.
+</ResponseField>
+
+---
+
+## Exceptions
+
+| Exception | Condition |
+|---|---|
+| `FileNotFoundException` | `filePath` does not exist or cannot be opened. |
+| `DirectoryNotFoundException` | `imagePath` directory does not exist when `writeImages` is `true`. |
+| `MuPdfException` | The file is not a valid PDF, is password-protected, or is corrupted. |
+| `TesseractNotFoundException` | `useOcr` is `true` but Tesseract is not installed or not on the `PATH`. |
+
+---
+
+## Examples
+
+### Minimal
+
+```csharp
+using PDF4LLM;
+
+string md = PdfExtractor.ToMarkdown("document.pdf");
+```
+
+### Per-page chunks
+
+Use `LlamaMarkdownReader` to get one document object per page with metadata:
+
+```csharp
+var reader = PdfExtractor.LlamaMarkdownReader();
+var chunks = reader.LoadData("document.pdf");
+
+foreach (var chunk in chunks)
+    Console.WriteLine($"Page {chunk.ExtraInfo["page"]}: {chunk.Text[..100]}");
+```
+
+### Images and specific pages
+
+```csharp
+using System.IO;
+using PDF4LLM;
+
+Directory.CreateDirectory("assets/");
+
+string md = PdfExtractor.ToMarkdown(
+    "document.pdf",
+    pages:       new List<int> { 0, 1, 2 },
+    writeImages: true,
+    imagePath:   "assets/",
+    imageFormat: "png"
+);
+```
+
+### OCR for scanned pages
+
+```csharp
+string md = PdfExtractor.ToMarkdown("scanned.pdf", useOcr: true);
+```
+
+### Embed images as Base64
+
+```csharp
+// Self-contained output — no external image files
+string md = PdfExtractor.ToMarkdown("document.pdf", embedImages: true);
+```
+
+### Multiple methods on one document
+
+```csharp
+using MuPDF.NET;
+using PDF4LLM;
+
+Document doc = new Document("document.pdf");
+
+string   md     = PdfExtractor.ToMarkdown(doc, embedImages: true);
+string   text   = PdfExtractor.ToText(doc);
+var      fields = PdfExtractor.GetKeyValues(doc);
+
+doc.Close();
+```
+
+---
+
+## See also
+
+<CardGroup cols={3}>
+  <Card title="Extract Markdown guide" icon="markdown" href="/dotnet/guides/extract-markdown">
+    Full walkthrough with all common options.
+  </Card>
+  <Card title="ToJson()" icon="brackets-curly" href="/dotnet/api/ToJson">
+    Structured output with bounding boxes and layout data.
+  </Card>
+  <Card title="ToText()" icon="align-left" href="/dotnet/api/ToText">
+    Plain text output without Markdown syntax.
+  </Card>
+</CardGroup>

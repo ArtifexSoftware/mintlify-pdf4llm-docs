@@ -1,0 +1,280 @@
+---
+title: Core Concepts
+description: Output formats, layout analysis, page chunking, and the document model — the mental model you need before going further.
+---
+
+# Core concepts
+
+This page explains the ideas that underpin every PDF4LLM method. You do not need to read it before running your first conversion, but it will help you make better decisions about output format, chunking strategy, and when to reach for `ParseDocument` instead of `ToMarkdown`.
+
+---
+
+## How PDF4LLM reads a PDF
+
+PDF is a visual format. Its internal structure describes where to paint characters on a page — their exact position, font, and size — not what those characters mean semantically. There is no concept of "heading" or "table" or "paragraph" in a raw PDF; there are only positioned glyphs and drawing instructions.
+
+PDF4LLM reconstructs semantic meaning from those visual signals:
+
+- **Reading order** is inferred by analysing the spatial position of text runs and resolving columns, sidebars, and captions into a single logical sequence.
+- **Headings** are identified by comparing font sizes across the page and document. Text rendered at a meaningfully larger size than the body is promoted to `#`, `##`, or `###` depending on its relative weight.
+- **Tables** are detected by looking for text blocks arranged in a grid pattern — consistent x-positions across rows, consistent y-positions across columns.
+- **Bold and italic** are read from the font name and font flags embedded in the PDF.
+- **Images** are extracted from the page's drawing commands and can be written to disk or embedded in the output.
+
+This analysis runs per page and is entirely layout-based — it does not use an LLM. The result is fast, deterministic, and does not require network access.
+
+---
+
+## Output formats
+
+PDF4LLM offers three output formats. The right choice depends on what your downstream system expects.
+
+### Markdown
+
+```csharp
+string markdown = PdfExtractor.ToMarkdown(doc);
+```
+
+The primary format. Produces a single string of GitHub-compatible Markdown covering all processed pages.
+
+What is preserved:
+
+- Headings as `#` / `##` / `###`
+- Tables as pipe-delimited Markdown tables
+- Bold as `**text**`, italic as `_text_`, monospaced as `` `text` ``
+- Multi-column layouts linearised into correct reading order
+- Images as `![image](path)` references or Base64 data URIs
+
+**When to use:** Feeding content into LLM prompts, storing in a vector store, or anywhere the downstream system understands Markdown. Most RAG pipelines should start here.
+
+**When not to use:** If your chunker splits on Markdown syntax characters, or if your embedding model was not trained on Markdown-heavy text, consider plain text instead.
+
+---
+
+### Plain text
+
+```csharp
+string text = PdfExtractor.ToText(doc);
+```
+
+Runs the same spatial layout analysis as Markdown but strips all syntax. Headings become plain text at the start of a block. Tables become whitespace-aligned text. No `#`, `**`, `_`, or pipe characters.
+
+**When to use:** When your chunker or embedding model is sensitive to Markdown syntax, or when you are feeding content into a system that renders Markdown literally rather than interpreting it.
+
+**When not to use:** When heading structure matters for retrieval (a `##` heading can be a meaningful chunk boundary signal), or when tables need to be machine-readable.
+
+---
+
+### JSON layout
+
+```csharp
+string json = PdfExtractor.ToJson(doc);
+```
+
+Returns the full layout structure of each processed page as a JSON string. Every block on every page is included with its type, content, and bounding box.
+
+```json
+[
+  {
+    "page": 0,
+    "width": 595.0,
+    "height": 842.0,
+    "blocks": [
+      {
+        "type": "text",
+        "bbox": [72.0, 56.0, 523.0, 78.0],
+        "content": "Annual Report 2024"
+      },
+      {
+        "type": "table",
+        "bbox": [72.0, 200.0, 523.0, 400.0],
+        "content": [["Q1", "Q2", "Q3", "Q4"], ["1.2M", "1.4M", "1.6M", "1.9M"]]
+      }
+    ]
+  }
+]
+```
+
+**When to use:** When you need to build a custom output format, filter blocks by type or position, or inspect how the layout engine has interpreted a particular document. Also useful for debugging unexpected Markdown output — if a table is rendering incorrectly, checking the JSON will tell you whether it was detected as a table block at all.
+
+**When not to use:** As a direct input to an LLM. The JSON envelope adds tokens without adding meaning; convert to Markdown or text first.
+
+---
+
+### Structured document model
+
+```csharp
+ParsedDocument parsed = PdfExtractor.ParseDocument(doc);
+```
+
+`ParseDocument` gives you the same information as JSON but as a typed .NET object graph — no serialisation required. Use this when you want to process document structure in code rather than parse a JSON string.
+
+```csharp
+foreach (ParsedPage page in parsed.Pages)
+{
+    Console.WriteLine($"Page {page.PageNumber}: {page.Width}×{page.Height}pt");
+
+    foreach (TableBlock table in page.Tables)
+        Console.WriteLine($"  Table at {table.BoundingBox}");
+
+    foreach (ImageBlock image in page.Images)
+        Console.WriteLine($"  Image at {image.BoundingBox}");
+}
+```
+
+See [ParsedDocument reference](/api-reference/parsed-document) for the full type hierarchy.
+
+---
+
+## Choosing a format
+
+| | Markdown | Plain text | JSON | ParsedDocument |
+|---|---|---|---|---|
+| Direct LLM input | ✓ best | ✓ good | ✗ | ✗ |
+| Vector store chunking | ✓ best | ✓ good | ✗ | ✗ |
+| Heading-aware chunking | ✓ | ✗ | ✓ | ✓ |
+| Table machine-readability | ✓ | ✗ | ✓ best | ✓ best |
+| Custom output pipeline | ✗ | ✗ | ✓ | ✓ best |
+| Debug layout issues | ✗ | ✗ | ✓ best | ✓ |
+
+---
+
+## Page chunking
+
+LLMs and embedding models have context limits. A 200-page document cannot be passed as a single string — it needs to be split into chunks before embedding.
+
+PDF4LLM does not include a chunker, but its output is designed to work well with common chunking strategies.
+
+### Chunk by page
+
+The simplest strategy: process the document with `pages` restricted to one page at a time, or use `LlamaMarkdownReader` which returns one `LlamaDocument` per page automatically.
+
+```csharp
+// One chunk per page using LlamaMarkdownReader
+var reader = PdfExtractor.LlamaMarkdownReader();
+var docs   = reader.LoadData("document.pdf");
+
+foreach (var doc in docs)
+{
+    int pageNum  = (int)doc.ExtraInfo["page"];
+    string chunk = doc.Text;
+    // embed and store `chunk` with metadata { page: pageNum }
+}
+```
+
+Per-page chunking is simple and predictable. Its weakness is that a single logical section may span two pages and end up in separate chunks, reducing retrieval quality for queries that span page boundaries.
+
+### Chunk by heading
+
+Extract the full document as Markdown, then split on `##` or `###` boundaries. Heading-aware chunks map more closely to the logical structure of the document — a section on "Revenue Recognition Policy" stays in one chunk regardless of where the page break falls.
+
+```csharp
+string markdown = PdfExtractor.ToMarkdown(doc);
+
+// Split on H2 headings (adapt the pattern to your documents)
+string[] chunks = System.Text.RegularExpressions.Regex
+    .Split(markdown, @"(?=^## )", RegexOptions.Multiline);
+```
+
+This works best on documents with consistent heading structure (reports, manuals, specifications). It works poorly on documents without headings (forms, invoices, scanned correspondence).
+
+### Chunk by token count
+
+Feed the Markdown output into a token-aware splitter (such as those provided by LangChain.NET, Semantic Kernel, or the `SharpToken` library) with a target chunk size and an overlap window.
+
+```csharp
+string markdown = PdfExtractor.ToMarkdown(doc);
+
+// Example with a hypothetical token splitter
+var splitter = new RecursiveCharacterTextSplitter(
+    chunkSize: 512,
+    chunkOverlap: 64
+);
+List<string> chunks = splitter.SplitText(markdown);
+```
+
+Token-count chunking is format-agnostic — it works on any output, including documents without clear heading structure.
+
+### Carrying metadata into chunks
+
+Whichever chunking strategy you use, attach source metadata to each chunk before embedding. At minimum, store the source file path and page number. This lets you return citations alongside retrieved passages.
+
+```csharp
+var reader = PdfExtractor.LlamaMarkdownReader();
+var docs   = reader.LoadData("annual-report.pdf", extraInfo: new Dictionary<string, object>
+{
+    { "source", "annual-report.pdf" },
+    { "year",   2024 }
+});
+
+foreach (var doc in docs)
+{
+    // doc.ExtraInfo contains: page, file_path, source, year
+}
+```
+
+---
+
+## The document lifecycle
+
+PDF4LLM operates on MuPDF.NET `Document` objects. A `Document` holds an open file handle and parsed internal state — it should be closed when you are done with it.
+
+```csharp
+Document doc = new Document("document.pdf");
+
+// ... process the document ...
+
+doc.Close(); // release the file handle
+```
+
+For short-lived scripts, this matters less. For long-running services processing many documents — an ingestion worker, a web API endpoint — always close documents explicitly to avoid file handle exhaustion.
+
+If you only need one conversion and do not need to call multiple methods on the same document, use the file path overloads directly. They open and close the document internally.
+
+```csharp
+// Internally opens and closes the document
+string markdown = PdfExtractor.ToMarkdown("document.pdf");
+```
+
+---
+
+## OCR and layout analysis
+
+For PDFs where pages are stored as rasterised images rather than selectable text — typically scanned documents — PDF4LLM can invoke Tesseract OCR before running layout analysis. Enable it with `useOcr: true`.
+
+```csharp
+string markdown = PdfExtractor.ToMarkdown(doc, useOcr: true);
+```
+
+OCR runs page-by-page and is significantly slower than native text extraction. For mixed documents where only some pages are scanned, restrict OCR to those pages using the `pages` parameter.
+
+See the [OCR guide](/guides/ocr) for language configuration and performance recommendations.
+
+---
+
+## Images
+
+PDF4LLM can extract images from pages in two ways:
+
+**Write to disk** — images are saved as files and the Markdown output references them by path:
+```csharp
+PdfExtractor.ToMarkdown(doc, writeImages: true, imagePath: "./images");
+```
+
+**Embed as Base64** — images are encoded and embedded directly in the Markdown as data URIs:
+```csharp
+PdfExtractor.ToMarkdown(doc, embedImages: true);
+```
+
+`writeImages` and `embedImages` are mutually exclusive. If neither is set, images are omitted from the output entirely.
+
+See the [Image extraction guide](/guides/image-extraction) for format options and file naming conventions.
+
+---
+
+## Next steps
+
+- [PDF to Markdown guide](/guides/pdf-to-markdown) — headers, tables, multi-column layouts in detail
+- [Page selection & chunking guide](/guides/page-chunking) — chunking strategies with full examples
+- [OCR guide](/guides/ocr) — Tesseract configuration and performance tips
+- [PdfExtractor API reference](/api-reference/pdf-extractor) — full method signatures and parameters

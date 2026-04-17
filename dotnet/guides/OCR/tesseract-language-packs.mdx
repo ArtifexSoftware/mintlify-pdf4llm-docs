@@ -1,18 +1,52 @@
 ---
 title: "Tesseract Language Packs"
-description: "How to install additional Tesseract language packs on macOS, Linux, and Windows."
+description: "How to install additional Tesseract language packs on Windows, macOS, and Linux for use with PDF4LLM OCR."
 icon: "language"
 ---
 
 ## Overview
 
-Tesseract identifies languages using three-letter [ISO 639-2](https://en.wikipedia.org/wiki/List_of_ISO_639-2_codes) codes. English (`eng`) is installed by default on most platforms. For any other language, you need to install the corresponding language pack before pymupdf4llm can use it for OCR.
+Tesseract identifies languages using three-letter [ISO 639-2](https://en.wikipedia.org/wiki/List_of_ISO_639-2_codes) codes. English (`eng`) is installed by default on most platforms. For any other language, you need to install the corresponding language pack before PDF4LLM can use it for OCR.
 
 A full list of supported language codes is available on the [Tesseract tessdata repository](https://github.com/tesseract-ocr/tessdata).
 
 <Tip>
   To see which languages are already installed on your system, run `tesseract --list-langs` in your terminal.
 </Tip>
+
+---
+
+## Windows
+
+### During installation (recommended)
+
+The Tesseract Windows installer from [UB Mannheim](https://github.com/UB-Mannheim/tesseract/wiki) lets you select additional language packs during setup. When you reach the **Choose Components** screen, expand **Additional language data** and tick the languages you need.
+
+### After installation (manual)
+
+If Tesseract is already installed, download language packs manually:
+
+1. Go to [github.com/tesseract-ocr/tessdata](https://github.com/tesseract-ocr/tessdata)
+2. Download the `.traineddata` file for your language (e.g. `fra.traineddata` for French)
+3. Copy the file into your Tesseract `tessdata` folder, typically:
+
+```
+C:\Program Files\Tesseract-OCR\tessdata\
+```
+
+<Note>
+  The Chocolatey (`choco install tesseract`) package only includes English. All additional languages must be added manually using the steps above.
+</Note>
+
+### Verify the install
+
+Open Command Prompt or PowerShell and run:
+
+```powershell
+tesseract --list-langs
+```
+
+Your newly installed language should appear in the output.
 
 ---
 
@@ -87,39 +121,7 @@ Common tessdata locations on Linux:
 
 ---
 
-## Windows
 
-### During installation (recommended)
-
-The Tesseract Windows installer from [UB Mannheim](https://github.com/UB-Mannheim/tesseract/wiki) lets you select additional language packs during setup. When you reach the **Choose Components** screen, expand **Additional language data** and tick the languages you need.
-
-### After installation (manual)
-
-If Tesseract is already installed, download language packs manually:
-
-1. Go to [github.com/tesseract-ocr/tessdata](https://github.com/tesseract-ocr/tessdata)
-2. Download the `.traineddata` file for your language (e.g. `fra.traineddata` for French)
-3. Copy the file into your Tesseract `tessdata` folder, typically:
-
-```
-C:\Program Files\Tesseract-OCR\tessdata\
-```
-
-<Note>
-  The Chocolatey (`choco install tesseract`) package only includes English. All additional languages must be added manually using the steps above.
-</Note>
-
-### Verify the install
-
-Open Command Prompt or PowerShell and run:
-
-```powershell
-tesseract --list-langs
-```
-
-Your newly installed language should appear in the output.
-
----
 
 ## macOS
 
@@ -158,18 +160,66 @@ Replace `fra` with your target language code and adjust the tessdata path to mat
 
 ---
 
-## Using a language with pymupdf4llm
+## Docker
 
-Once a language pack is installed, pass its code to `to_markdown()` via the `ocr_language` parameter:
+For containerised .NET applications, install language packs in your `Dockerfile` alongside Tesseract:
 
-```python
-import pymupdf4llm
+```dockerfile
+FROM mcr.microsoft.com/dotnet/runtime:8.0
 
-# Single language
-md = pymupdf4llm.to_markdown("document.pdf", ocr_language="fra")
+# Install Tesseract with specific language packs
+RUN apt-get update && apt-get install -y \
+    tesseract-ocr \
+    tesseract-ocr-eng \
+    tesseract-ocr-fra \
+    tesseract-ocr-deu \
+    && rm -rf /var/lib/apt/lists/*
 
-# Multiple languages
-md = pymupdf4llm.to_markdown("document.pdf", ocr_language="eng+fra+deu")
+WORKDIR /app
+COPY --from=build /app/publish .
+
+ENTRYPOINT ["dotnet", "MyApp.dll"]
+```
+
+If the language you need is not available through `apt`, copy the `.traineddata` file directly into the image:
+
+```dockerfile
+# Copy a manually downloaded .traineddata file into the image
+COPY fra.traineddata /usr/share/tesseract-ocr/4.00/tessdata/fra.traineddata
+```
+
+<Tip>
+  If Tesseract cannot find your language data at runtime, set the `TESSDATA_PREFIX` environment variable to the directory containing your `.traineddata` files:
+
+  ```dockerfile
+  ENV TESSDATA_PREFIX=/usr/share/tesseract-ocr/4.00/tessdata/
+  ```
+</Tip>
+
+---
+
+## Using a language with PDF4LLM
+
+Once a language pack is installed, pass its code to `ToMarkdown()`, `ToText()`, or `ParseDocument()` via the `ocrLanguage` parameter:
+
+```csharp
+using PDF4LLM;
+
+// Single language
+string md = PdfExtractor.ToMarkdown("document.pdf", useOcr: true, ocrLanguage: "fra");
+
+// Multiple languages combined with +
+string md = PdfExtractor.ToMarkdown("document.pdf", useOcr: true, ocrLanguage: "eng+fra+deu");
+```
+
+The same parameter works across all OCR-capable methods:
+
+```csharp
+// Plain text with OCR
+string text = PdfExtractor.ToText("document.pdf", useOcr: true, ocrLanguage: "jpn");
+
+// Structured layout with OCR
+ParsedDocument parsed = PdfExtractor.ParseDocument("document.pdf", useOcr: true, ocrLanguage: "ara");
 ```
 
 ---

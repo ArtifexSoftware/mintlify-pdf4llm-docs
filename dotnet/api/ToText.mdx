@@ -1,0 +1,219 @@
+---
+title: PdfExtractor.ToText
+description: Complete reference for ToText — signatures, every parameter, return value, exceptions, and examples.
+---
+
+# PdfExtractor.ToText
+
+Converts a PDF to plain text using the same spatial layout analysis as `ToMarkdown` — reading order, column linearisation, heading detection, and table detection — but without any Markdown syntax. Headings become plain text, tables become whitespace-aligned text, and no `#`, `**`, `|`, or `---` characters appear in the output.
+
+```csharp
+using MuPDF.NET;
+using PDF4LLM;
+
+string text = PdfExtractor.ToText("document.pdf");
+```
+
+**Part of:** [`PdfExtractor`](/api-reference/pdf-extractor) &nbsp;·&nbsp; See also: [`ToMarkdown`](/api-reference/to-markdown) &nbsp;·&nbsp; [`ToJson`](/api-reference/to-json)
+
+---
+
+## Signatures
+
+Two overloads are available. Use the `Document` overload when calling multiple methods on the same file to avoid re-parsing it. Use the file path overload for single operations.
+
+```csharp
+// Document overload
+public static string ToText(
+    Document   doc,
+    List<int>? pages        = null,
+    bool       useOcr       = false,
+    string     ocrLanguage  = "eng",
+    bool       showProgress = false,
+    bool       forceText    = false
+);
+
+// File path overload
+public static string ToText(
+    string     filePath,
+    List<int>? pages        = null,
+    bool       useOcr       = false,
+    string     ocrLanguage  = "eng",
+    bool       showProgress = false,
+    bool       forceText    = false
+);
+```
+
+---
+
+## Parameters
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `doc` | `Document` | — | An open MuPDF.NET `Document`. Used by the first overload. Close the document after all operations on it are complete. |
+| `filePath` | `string` | — | Path to a PDF file. Opens and closes the document internally. Use when calling `ToText` only once on a given file. |
+| `pages` | `List<int>?` | `null` | Zero-based page numbers to process. `null` processes all pages in document order. Pages are processed in the order supplied. |
+| `useOcr` | `bool` | `false` | Run Tesseract OCR on each page before layout analysis. Required for scanned or image-based pages that contain no selectable text. Tesseract must be installed and on the `PATH`. |
+| `ocrLanguage` | `string` | `"eng"` | Tesseract language code used when `useOcr` is `true`. Use `+` to combine languages: `"eng+fra"`. The corresponding language pack must be installed. |
+| `showProgress` | `bool` | `false` | Write a per-page progress indicator to the console. Useful for large documents. |
+| `forceText` | `bool` | `false` | Extract text from regions the layout engine classifies as pictures or image backgrounds. Useful for PDFs exported from presentation tools. |
+
+`ToText` does not accept `writeImages`, `embedImages`, `imagePath`, or `imageFormat`. Images are always excluded from plain text output.
+
+---
+
+## Returns
+
+`string` — The processed pages as a single plain text string.
+
+Paragraphs are separated by blank lines. Page boundaries are indicated by newlines rather than a horizontal rule marker. The string is UTF-8 compatible — use `System.Text.Encoding.UTF8` when writing to disk.
+
+### What changes compared to ToMarkdown
+
+| Document element | `ToMarkdown` | `ToText` |
+|---|---|---|
+| Heading | `## Section Title` | `Section Title` |
+| Bold text | `**important**` | `important` |
+| Italic text | `_term_` | `term` |
+| Monospaced text | `` `code` `` | `code` |
+| Table row | `\| Q1 \| $3.8B \| 8% \|` | `Q1    $3.8B    8%` |
+| Table separator row | `\|---|---|---\|` | _(omitted)_ |
+| Image reference | `![image](path.png)` | _(omitted)_ |
+| Page boundary | `---` | _(newline)_ |
+
+The underlying layout analysis — reading order, column linearisation, heading detection, table detection — is identical between the two methods. Only the serialisation differs.
+
+---
+
+## Exceptions
+
+| Exception | Thrown when |
+|---|---|
+| `FileNotFoundException` | `filePath` does not exist or cannot be opened. |
+| `MuPdfException` | The file is not a valid PDF, is password-protected, or is corrupted. |
+| `TesseractNotFoundException` | `useOcr` is `true` but Tesseract is not installed or not on the `PATH`. |
+
+---
+
+## Examples
+
+### Minimal
+
+```csharp
+string text = PdfExtractor.ToText("document.pdf");
+```
+
+### Specific pages
+
+```csharp
+Document doc = new Document("report.pdf");
+
+string text = PdfExtractor.ToText(
+    doc,
+    pages: new List<int> { 0, 1, 2 }
+);
+
+doc.Close();
+```
+
+### OCR for scanned pages
+
+```csharp
+string text = PdfExtractor.ToText(
+    doc,
+    useOcr:      true,
+    ocrLanguage: "deu"   // German
+);
+```
+
+### Text over image backgrounds
+
+```csharp
+string text = PdfExtractor.ToText(doc, forceText: true);
+```
+
+### Save to a file
+
+```csharp
+string text = PdfExtractor.ToText(doc);
+File.WriteAllText("output.txt", text, System.Text.Encoding.UTF8);
+```
+
+### Multiple methods on one document
+
+```csharp
+Document doc = new Document("report.pdf");
+
+string markdown = PdfExtractor.ToMarkdown(doc);
+string text     = PdfExtractor.ToText(doc);
+var    fields   = PdfExtractor.GetKeyValues(doc);
+
+doc.Close();
+```
+
+### Split output into paragraphs
+
+```csharp
+string text = PdfExtractor.ToText(doc);
+
+string[] paragraphs = text.Split(
+    new[] { "\n\n" },
+    StringSplitOptions.RemoveEmptyEntries
+);
+```
+
+### Normalise whitespace
+
+Table columns in plain text output are whitespace-aligned. Collapse multi-space runs after any positional processing:
+
+```csharp
+string text = PdfExtractor.ToText(doc);
+
+string normalised = string.Join(
+    "\n",
+    text.Split('\n')
+        .Select(line => System.Text.RegularExpressions.Regex
+            .Replace(line.Trim(), @" {2,}", " "))
+);
+```
+
+---
+
+## When to use ToText over ToMarkdown
+
+Prefer `ToText` when:
+
+- Your downstream system renders Markdown literally rather than interpreting it — showing `**bold**` as five characters instead of **bold**
+- Your token-based chunker counts `|`, `#`, `*`, and `-` as tokens and you need a clean token count
+- You are feeding content into a keyword search index (Elasticsearch, Azure Cognitive Search, Lucene)
+- Your embedding model was trained on plain prose rather than Markdown-heavy text
+- You need to post-process the output and Markdown syntax would complicate the transformation
+
+Prefer `ToMarkdown` when:
+
+- Heading boundaries are a useful chunking signal — split on `##` to get section-level chunks
+- Retrieved passages will be displayed in a UI that renders Markdown
+- You are passing content directly into an LLM prompt that benefits from structural context
+- You need image references embedded in the text flow
+
+**Rule of thumb:** `ToMarkdown` for LLM consumption and vector stores; `ToText` for search indexes, custom pipelines, and systems that don't render Markdown.
+
+---
+
+## Behaviour notes
+
+**Do not strip Markdown from ToMarkdown output as a substitute for ToText.** Running `ToMarkdown` and then applying a regex to remove syntax characters is slower, fragile, and produces subtly different output — particularly for tables, where removing `|` characters causes column content to run together without spacing. Use `ToText` directly when plain text is the target.
+
+**Encoding** — The returned string is a .NET `string` (UTF-16 in memory). When writing to disk, always specify `System.Text.Encoding.UTF8` explicitly. The two-argument `File.WriteAllText` overload uses the platform default encoding, which may corrupt non-ASCII characters on Windows.
+
+**Whitespace alignment in tables** — Table columns are aligned using spaces to represent column structure. This alignment depends on consistent character widths in the source PDF. Documents using proportional fonts may produce inconsistently spaced columns in plain text output. Use [`ToJson`](/api-reference/to-json) or [`ParseDocument`](/api-reference/parsed-document) to access structured table data if column alignment is unreliable.
+
+---
+
+## Related
+
+- [`ToMarkdown`](/api-reference/to-markdown) — same analysis with full Markdown syntax
+- [`ToJson`](/api-reference/to-json) — layout structure as JSON with bounding boxes
+- [Plain text extraction guide](/guides/plain-text) — in-depth coverage of when to use `ToText`, chunking without syntax noise, and whitespace handling
+- [OCR guide](/guides/ocr) — Tesseract setup, language codes, and performance patterns
+- [Page selection & chunking](/guides/page-chunking) — `pages` parameter and chunking strategies

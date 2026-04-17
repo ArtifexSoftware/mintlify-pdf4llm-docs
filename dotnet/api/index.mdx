@@ -1,0 +1,71 @@
+---
+title: API
+description: Complete reference for all PDF4LLM methods and types.
+icon: 'code'
+---
+
+## Extraction methods
+
+The three primary extraction methods share a common interface — they all accept a file path string or an open `MuPDF.NET.Document`, support the `pages` parameter for partial extraction, and return a string you can write directly to disk or pass downstream.
+
+<CardGroup cols={1}>
+  <Card title="ToMarkdown()" icon="markdown" href="/dotnet/api/PdfExtractor#tomarkdown">
+    Extract content as a GitHub-compatible Markdown string. The primary method for LLM ingestion and RAG pipelines. Supports image extraction, OCR, and per-page output via `LlamaMarkdownReader`.
+  </Card>
+  <Card title="ToJson()" icon="brackets-curly" href="/dotnet/api/PdfExtractor#tojson">
+    Extract content as structured JSON with bounding boxes and layout data for every block on the page. Use for custom pipelines, positional filtering, and debugging extraction output.
+  </Card>
+  <Card title="ToText()" icon="align-left" href="/dotnet/api/PdfExtractor#totext">
+    Extract content as plain text, stripped of all Markdown syntax. Use for search indexing, NLP pipelines, and systems that render Markdown literally.
+  </Card>
+</CardGroup>
+
+---
+
+## Layout and structure methods
+
+<CardGroup cols={2}>
+  <Card title="ParseDocument()" icon="table-columns" href="/api-reference/parsed-document">
+    Analyse the visual layout of a document and return a typed `ParsedDocument` object — pages, text blocks, tables, and image regions — with bounding boxes and reading order. The in-process equivalent of `ToJson()`.
+  </Card>
+  <Card title="GetKeyValues()" icon="text-size" href="/api-reference/form-field">
+    Extract all interactive AcroForm field names, values, and page locations from a PDF. Use for structured data extraction from filled-in forms.
+  </Card>
+</CardGroup>
+
+---
+
+## Reader types
+
+<CardGroup cols={1}>
+  <Card title="PDFMarkdownReader" icon="database" href="/api-reference/pdf-markdown-reader">
+    A LlamaIndex-compatible document reader. Created via `PdfExtractor.LlamaMarkdownReader()`. Loads a PDF and returns one `LlamaDocument` per page, each with Markdown text and metadata including page number and source file path.
+  </Card>
+</CardGroup>
+
+---
+
+## Return types
+
+<CardGroup cols={1}>
+  <Card title="ParsedDocument" icon="rectangle" href="/api-reference/parsed-document">
+    Typed .NET object returned by `ParseDocument()`. Contains a list of `ParsedPage` objects, each with its blocks, tables, images, and dimensions.
+  </Card>
+  <Card title="FormField" icon="list" href="/api-reference/form-field">
+    Represents a single AcroForm field returned by `GetKeyValues()`. Exposes `Name`, `Value`, and `Page` properties.
+  </Card>
+</CardGroup>
+
+---
+
+## Quick reference
+
+| Method / Type | Returns | Key parameters |
+|---|---|---|
+| `PdfExtractor.ToMarkdown()` | `string` | `pages`, `writeImages`, `embedImages`, `useOcr`, `ocrLanguage`, `forceText` |
+| `PdfExtractor.ToJson()` | `string` (JSON) | `pages`, `showProgress` |
+| `PdfExtractor.ToText()` | `string` | `pages`, `useOcr`, `ocrLanguage`, `forceText` |
+| `PdfExtractor.ParseDocument()` | `ParsedDocument` | `pages`, `useOcr`, `ocrLanguage` |
+| `PdfExtractor.GetKeyValues()` | `List<FormField>` | `doc` only — no `pages` parameter |
+| `PdfExtractor.LlamaMarkdownReader()` | `PDFMarkdownReader` | — |
+| `PDFMarkdownReader.LoadData()` | `List<LlamaDocument>` | `filePath`, `extraInfo` |

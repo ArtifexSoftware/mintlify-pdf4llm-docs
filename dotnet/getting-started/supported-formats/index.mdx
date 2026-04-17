@@ -1,0 +1,75 @@
+---
+title: Supported Formats
+description: Input formats MuPDF.NET can read, and output formats it can produce.
+icon: "file"
+---
+
+## Input Formats
+
+MuPDF.NET can open and extract content from the following document types:
+
+| Format | Extensions | Notes |
+|--------|------------|-------|
+| PDF | `.pdf` | All versions, including encrypted and scanned |
+| XPS | `.xps` | Microsoft XML Paper Specification |
+| eBooks | `.epub`, `.mobi`, `.fb2` | Reflowable content is linearised per chapter |
+| Comic Books | `.cbz` | Image-based pages; OCR recommended |
+
+
+---
+
+## Output Formats
+
+MuPDF.NET can produce output in four formats depending on your use case:
+
+| Format | Function | Best For |
+|--------|----------|----------|
+| Markdown | `ToMarkdown()` | LLM ingestion, RAG pipelines, readable docs |
+| JSON | `ToJson()` | Custom pipelines needing bounding boxes and layout data |
+| Plain Text | `ToText()` | Simple text extraction, search indexing |
+| Images | `ToMarkdown(writeImages: true)` | Preserving figures, charts, and diagrams |
+
+### Markdown
+
+The default and most commonly used output format. Text is extracted in reading order with headings, lists, tables, and inline formatting preserved where detectable.
+
+```csharp
+string mdText = PdfExtractor.ToMarkdown("document.pdf");
+```
+
+### JSON
+
+Returns structured data including bounding boxes, font information, and layout metadata for every block on the page. Useful for building custom post-processing pipelines.
+
+```csharp
+string json_output = PdfExtractor.ToJson("document.pdf");
+```
+
+### Plain Text
+
+Strips all formatting and returns raw text content. Ideal when downstream tools do not need Markdown syntax.
+
+```csharp
+string text = PdfExtractor.ToText("document.pdf");
+```
+
+### Images
+
+When `writeImages: true` is passed to `ToMarkdown()`, embedded images and graphics are extracted and saved to disk. Image paths are referenced inline in the Markdown output.
+
+```csharp
+string mdText = PdfExtractor.ToMarkdown("document.pdf", writeImages: true, imagePath: "images/");
+```
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Extract Markdown" icon="markdown" href="/dotnet/guides/extract-markdown">
+    Full walkthrough of `to_markdown()` with common options.
+  </Card>
+  <Card title="Images & Graphics" icon="image" href="/dotnet/guides/images-and-graphics">
+    Controlling image extraction, DPI, and output path.
+  </Card>
+</CardGroup>
