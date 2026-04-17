@@ -128,7 +128,8 @@
           {
             "group": "Reference",
             "pages": [
-              "dotnet/api/index"
+              "dotnet/api/index",
+              "dotnet/reference/chunk-schema"
             ]
           }
         ]

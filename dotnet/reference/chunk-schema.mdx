@@ -1,0 +1,405 @@
+---
+title: Chunk Schema
+description: Full schema for each page chunk returned when `pageChunks=true` is passed to ToMarkdown() or ToText().
+icon: "layer-group"
+---
+
+## Overview
+
+When `pageChunks: true` is passed to [ToMarkdown()](/api-reference/to-markdown) or [ToText()](/api-reference/to-text), the return value is a JSON string containing an array of page objects — one per page — rather than a single concatenated string. Each object in the array follows the schema described on this page.
+
+Deserialise the JSON string with your preferred library to work with the chunks in C#:
+
+```csharp
+using Newtonsoft.Json.Linq;
+using PDF4LLM;
+
+string   json   = PdfExtractor.ToMarkdown("document.pdf", pageChunks: true);
+JArray   chunks = JArray.Parse(json);
+
+foreach (JObject chunk in chunks)
+{
+    foreach (var prop in chunk.Properties())
+    {
+        Console.WriteLine(prop.Name);
+        Console.WriteLine("----");
+        Console.WriteLine(prop.Value);
+    }
+}
+```
+
+### Why use page chunks?
+
+Page chunking is the recommended approach for any pipeline that needs to process, search, or embed a PDF's content. Rather than working with one large string, you get a structured array where each page is a self-contained unit carrying both its text and the metadata needed to make that text useful.
+
+This matters most in RAG applications, where you need to attach source information — file path, page number, document title — to every embedded chunk so that retrieved passages can be traced back to their origin.
+
+The layout data in `page_boxes` adds another layer of utility: you can filter out headers, footers, and captions before embedding, or treat tables and body text differently depending on your retrieval strategy.
+
+Rather than post-processing a flat Markdown string and trying to guess where page boundaries or section headings fall, chunking gives you that structure directly from the PDF's own layout engine.
+
+**Example — extracting page numbers and first 100 characters of text from each chunk:**
+
+```csharp
+using Newtonsoft.Json.Linq;
+using PDF4LLM;
+
+string json   = PdfExtractor.ToMarkdown("document.pdf", pageChunks: true);
+JArray chunks = JArray.Parse(json);
+
+foreach (JObject chunk in chunks)
+{
+    int    pageNumber = chunk["metadata"]!["page_number"]!.Value<int>();
+    string text       = chunk["text"]!.Value<string>()!;
+
+    Console.WriteLine($"{pageNumber}: {text[..Math.Min(100, text.Length)]}");
+}
+```
+
+This is the recommended approach for RAG pipelines — it lets you attach rich metadata to each piece of content before embedding or indexing it.
+
+---
+
+## Chunk schema
+
+Each item in the returned JSON array is an object with four top-level keys:
+
+```json
+{
+    "metadata":   { ... },
+    "toc_items":  [ ... ],
+    "page_boxes": [ ... ],
+    "text":       "..."
+}
+```
+
+---
+
+### `metadata`
+
+Contains both document-level properties (consistent across all chunks) and page-level properties (unique per chunk).
+
+```json
+{
+    "format":       "PDF 1.7",
+    "title":        "My Document",
+    "author":       "Jane Smith",
+    "subject":      "",
+    "keywords":     "",
+    "creator":      "pdf-lib",
+    "producer":     "pdf-lib",
+    "creationDate": "D:20260206183204Z",
+    "modDate":      "D:20260206183204Z",
+    "trapped":      "",
+    "encryption":   null,
+
+    "file_path":    "document.pdf",
+    "page_count":   19,
+    "page_number":  1
+}
+```
+
+<ResponseField name="format" type="string">
+  The PDF version string, e.g. `"PDF 1.7"`.
+</ResponseField>
+
+<ResponseField name="title" type="string">
+  Document title from PDF metadata. Empty string if not set.
+</ResponseField>
+
+<ResponseField name="author" type="string">
+  Document author from PDF metadata. Empty string if not set.
+</ResponseField>
+
+<ResponseField name="creator" type="string">
+  The application that originally created the PDF.
+</ResponseField>
+
+<ResponseField name="producer" type="string">
+  The application that produced or converted the PDF.
+</ResponseField>
+
+<ResponseField name="creationDate" type="string">
+  PDF creation date string in `D:YYYYMMDDHHmmSSZ` format.
+</ResponseField>
+
+<ResponseField name="modDate" type="string">
+  Date the PDF was last modified, in the same format as `creationDate`.
+</ResponseField>
+
+<ResponseField name="encryption" type="string | null">
+  Encryption method if the document is encrypted, otherwise `null`.
+</ResponseField>
+
+<ResponseField name="file_path" type="string">
+  The file path of the source document as provided to `ToMarkdown()`.
+</ResponseField>
+
+<ResponseField name="page_count" type="integer">
+  Total number of pages in the document.
+</ResponseField>
+
+<ResponseField name="page_number" type="integer">
+  The 1-based page number this chunk represents.
+</ResponseField>
+
+#### Usage example
+
+```csharp
+foreach (JObject chunk in chunks)
+{
+    var    meta      = chunk["metadata"]!;
+    int    pageNum   = meta["page_number"]!.Value<int>();
+    int    pageCount = meta["page_count"]!.Value<int>();
+    string filePath  = meta["file_path"]!.Value<string>()!;
+
+    Console.WriteLine($"Page {pageNum} of {pageCount} — {filePath}");
+}
+```
+
+---
+
+### `toc_items`
+
+A list of Table of Contents entries that fall on this page. Each entry is an array in the format `[level, title, page_number]`.
+
+```json
+"toc_items": [
+    [1, "Introduction",      3],
+    [2, "Background",        3],
+    [2, "Problem Statement", 3]
+]
+```
+
+<ResponseField name="level" type="integer">
+  Heading hierarchy depth. `1` = top-level chapter, `2` = section, `3` = subsection, etc.
+</ResponseField>
+
+<ResponseField name="title" type="string">
+  The heading text as it appears in the Table of Contents.
+</ResponseField>
+
+<ResponseField name="page_number" type="integer">
+  The page number the TOC entry points to (1-based).
+</ResponseField>
+
+<Note>
+  `toc_items` is an empty array `[]` for pages that have no TOC entries, or for documents without a Table of Contents. Always check before iterating.
+</Note>
+
+#### Usage example
+
+```csharp
+foreach (JObject chunk in chunks)
+{
+    foreach (JArray entry in chunk["toc_items"]!)
+    {
+        int    level  = entry[0].Value<int>();
+        string title  = entry[1].Value<string>()!;
+        int    page   = entry[2].Value<int>();
+        string indent = new string(' ', (level - 1) * 2);
+
+        Console.WriteLine($"{indent}{title} (p.{page})");
+    }
+}
+```
+
+---
+
+### `page_boxes`
+
+A list of layout elements detected on the page by the layout analysis engine. Each element describes a discrete visual block — a paragraph, heading, image, table, list item — along with its position on the page and its character offsets within the page's `text` string.
+
+```json
+"page_boxes": [
+    {
+        "index": 0,
+        "class": "section-header",
+        "bbox":  [58, 55, 560, 108],
+        "pos":   [0, 88]
+    },
+    {
+        "index": 1,
+        "class": "text",
+        "bbox":  [36, 125, 574, 209],
+        "pos":   [88, 524]
+    }
+]
+```
+
+<ResponseField name="index" type="integer">
+  Zero-based position of this box in the page's reading order (top to bottom).
+</ResponseField>
+
+<ResponseField name="class" type="string">
+  The type of layout element detected. See the [box classes](#box-classes) table below.
+</ResponseField>
+
+<ResponseField name="bbox" type="[float, float, float, float]">
+  Bounding box of the element in PDF page coordinates: `[x0, y0, x1, y1]`. Origin is the top-left of the page. Units are PDF points (1 pt = 1/72 inch).
+</ResponseField>
+
+<ResponseField name="pos" type="[int, int]">
+  Character offsets into the page's `text` string: `[start, end]`. Use these to slice the exact text that corresponds to this layout element.
+</ResponseField>
+
+##### Box classes
+
+| Class | Description |
+|---|---|
+| `text` | Body paragraph or general prose |
+| `section-header` | A heading or section title |
+| `list-item` | A bullet or numbered list entry |
+| `table` | A detected table |
+| `picture` | An image or figure |
+| `caption` | A caption beneath a figure or table |
+| `page-footer` | Footer content at the bottom of the page |
+| `page-header` | Header content at the top of the page |
+
+#### Usage example — extract only headings
+
+```csharp
+foreach (JObject chunk in chunks)
+{
+    string text  = chunk["text"]!.Value<string>()!;
+
+    foreach (JObject box in chunk["page_boxes"]!)
+    {
+        if (box["class"]!.Value<string>() != "section-header") continue;
+
+        int    start       = box["pos"]![0]!.Value<int>();
+        int    end         = box["pos"]![1]!.Value<int>();
+        string headingText = text[start..end].Trim();
+
+        Console.WriteLine(headingText);
+    }
+}
+```
+
+#### Usage example — get bounding boxes for all images
+
+```csharp
+foreach (JObject chunk in chunks)
+{
+    int page = chunk["metadata"]!["page_number"]!.Value<int>();
+
+    foreach (JObject box in chunk["page_boxes"]!)
+    {
+        if (box["class"]!.Value<string>() != "picture") continue;
+
+        var bbox = box["bbox"]!.ToObject<float[]>()!;
+        Console.WriteLine($"Page {page}: image at [{string.Join(", ", bbox)}]");
+    }
+}
+```
+
+---
+
+### `text`
+
+The full Markdown-formatted text content of the page as a single string. Headings, bold text, tables, and list items are represented using standard Markdown syntax.
+
+```json
+"text": "## Introduction\n\nWe highlight four promising research opportunities to improve\n_Large Language Model_ inference for datacenter AI...\n\n## **BACKGROUND**\n\n...\n"
+```
+
+<ResponseField name="text" type="string">
+  Markdown string for the entire page. Newlines separate logical blocks. Images that cannot be extracted are replaced with a placeholder such as `==> picture [535 x 193] intentionally omitted <==`.
+</ResponseField>
+
+<Note>
+  The character offsets in each `page_boxes[n]["pos"]` correspond directly to positions within this string. Use them to precisely extract the text for any layout element without re-parsing the Markdown.
+</Note>
+
+#### Usage example — slice text by layout element
+
+```csharp
+JObject chunk = (JObject)chunks[0];
+string  text  = chunk["text"]!.Value<string>()!;
+
+foreach (JObject box in chunk["page_boxes"]!)
+{
+    int    start   = box["pos"]![0]!.Value<int>();
+    int    end     = box["pos"]![1]!.Value<int>();
+    string cls     = box["class"]!.Value<string>()!;
+    string snippet = text[start..end].Trim();
+
+    if (snippet.Length > 80)
+        snippet = snippet[..80];
+
+    Console.WriteLine($"[{cls}] {snippet}");
+}
+```
+
+---
+
+## Full iteration example
+
+```csharp
+using Newtonsoft.Json.Linq;
+using PDF4LLM;
+
+string json   = PdfExtractor.ToMarkdown("document.pdf", pageChunks: true);
+JArray chunks = JArray.Parse(json);
+
+foreach (JObject chunk in chunks)
+{
+    var    meta      = chunk["metadata"]!;
+    var    toc       = chunk["toc_items"]!;
+    var    boxes     = chunk["page_boxes"]!;
+    string text      = chunk["text"]!.Value<string>()!;
+
+    int    pageNum   = meta["page_number"]!.Value<int>();
+    int    pageCount = meta["page_count"]!.Value<int>();
+
+    Console.WriteLine($"\n--- Page {pageNum} of {pageCount} ---");
+
+    // TOC entries on this page
+    foreach (JArray entry in toc)
+    {
+        int    level = entry[0].Value<int>();
+        string title = entry[1].Value<string>()!;
+        Console.WriteLine($"  TOC [{level}]: {title}");
+    }
+
+    // Layout elements
+    foreach (JObject box in boxes)
+    {
+        int    start   = box["pos"]![0]!.Value<int>();
+        int    end     = box["pos"]![1]!.Value<int>();
+        string cls     = box["class"]!.Value<string>()!;
+        string snippet = text[start..end].Trim().Replace("\n", " ");
+
+        if (snippet.Length > 60)
+            snippet = snippet[..60];
+
+        Console.WriteLine($"  [{cls}] {snippet}");
+    }
+}
+```
+
+---
+
+## Related
+
+| Method | Description |
+|---|---|
+| [`ToMarkdown()`](/dotnet/api/PdfExtractor#tomarkdown) | Produces chunks when `pageChunks: true` |
+| [`ToText()`](/dotnet/api/PdfExtractor#totext) | Plain text equivalent with `pageChunks: true` |
+| [`ToJson()`](/dotnet/api/PdfExtractor#tojson) | Alternative export with full bounding box and layout data |
+| [`GetKeyValues()`](/dotnet/api/PdfExtractor#getkeyvalues) | Extract form field data from a PDF |
+
+<CardGroup cols={2}>
+  <Card title="JSON layout export" icon="layer-group" href="/guides/json-layout">
+    Full schema reference for the JSON output, including text, image, table, and drawing blocks with bounding boxes.
+  </Card>
+  <Card title="Extract JSON guide" icon="brackets-curly" href="/guides/extract-json">
+    Working walkthrough with filtering and pipeline examples.
+  </Card>
+  <Card title="ToJson()" icon="code" href="/dotnet/api/PdfExtractor#tojson">
+    Full API reference for ToJson().
+  </Card>
+  <Card title="Form field extraction" icon="table" href="/dotnet/guides/forms">
+    Extracting form data from a PDF as key/value pairs.
+  </Card>
+</CardGroup>
