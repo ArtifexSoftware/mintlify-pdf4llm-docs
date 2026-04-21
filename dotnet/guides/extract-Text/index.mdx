@@ -1,6 +1,6 @@
 ---
 title: Extract Text
-description: Use [ToText()](/dotnet/api/to-text) to get clean, plain text output stripped of all Markdown formatting.
+description: Use [ToText()](/dotnet/api/PdfExtractor#totext) to get clean, plain text output stripped of all Markdown formatting.
 icon: "text"
 ---
 
@@ -130,12 +130,12 @@ string text = PdfExtractor.ToText("document.pdf", useOcr: true);
 string text = PdfExtractor.ToText("document.pdf", useOcr: true, ocrLanguage: "fra");
 ```
 
-See [OCR](/guides/ocr) for a full walkthrough of Tesseract installation, language codes, and patterns for mixed documents.
+See [OCR](/dotnet/guides/OCR) for a full walkthrough of Tesseract installation, language codes, and patterns for mixed documents.
 
 ---
 
 <Note>
-  For the full API signature, see the [ToText() API reference](/api-reference/to-text).
+  For the full API signature, see the [ToText() API reference](/dotnet/api/PdfExtractor#totext).
 </Note>
 
 ---
@@ -143,16 +143,13 @@ See [OCR](/guides/ocr) for a full walkthrough of Tesseract installation, languag
 ## Next steps
 
 <CardGroup cols={2}>
-  <Card title="Extract Markdown" icon="markdown" href="/guides/extract-markdown">
+  <Card title="Extract Markdown" icon="markdown" href="/dotnet/guides/extract-Markdown">
     Preserve structure and formatting for LLM pipelines.
   </Card>
-  <Card title="Extract JSON" icon="brackets-curly" href="/guides/extract-json">
+  <Card title="Extract JSON" icon="brackets-curly" href="/dotnet/guides/extract-JSON">
     Access bounding boxes and layout data for custom pipelines.
   </Card>
-  <Card title="Page Selection & Chunking" icon="floppy-disk" href="/guides/page-chunking">
-    Split output into pages or token-bounded chunks.
-  </Card>
-  <Card title="OCR" icon="eye" href="/guides/ocr">
+  <Card title="OCR" icon="eye" href="/dotnet/guides/OCR">
     Control OCR behaviour and language configuration.
   </Card>
 </CardGroup>

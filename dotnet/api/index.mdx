@@ -25,10 +25,10 @@ The three primary extraction methods share a common interface — they all accep
 ## Layout and structure methods
 
 <CardGroup cols={2}>
-  <Card title="ParseDocument()" icon="table-columns" href="/api-reference/parsed-document">
+  <Card title="ParseDocument()" icon="table-columns" href="/dotnet/api/PdfExtractor#parsedocument">
     Analyse the visual layout of a document and return a typed `ParsedDocument` object — pages, text blocks, tables, and image regions — with bounding boxes and reading order. The in-process equivalent of `ToJson()`.
   </Card>
-  <Card title="GetKeyValues()" icon="text-size" href="/api-reference/form-field">
+  <Card title="GetKeyValues()" icon="text-size" href="/dotnet/api/PdfExtractor#getkeyvalues">
     Extract all interactive AcroForm field names, values, and page locations from a PDF. Use for structured data extraction from filled-in forms.
   </Card>
 </CardGroup>
@@ -38,7 +38,7 @@ The three primary extraction methods share a common interface — they all accep
 ## Reader types
 
 <CardGroup cols={1}>
-  <Card title="PDFMarkdownReader" icon="database" href="/api-reference/pdf-markdown-reader">
+  <Card title="PDFMarkdownReader" icon="database" href="/dotnet/api/PdfExtractor#llamamarkdownreader">
     A LlamaIndex-compatible document reader. Created via `PdfExtractor.LlamaMarkdownReader()`. Loads a PDF and returns one `LlamaDocument` per page, each with Markdown text and metadata including page number and source file path.
   </Card>
 </CardGroup>
@@ -48,10 +48,10 @@ The three primary extraction methods share a common interface — they all accep
 ## Return types
 
 <CardGroup cols={1}>
-  <Card title="ParsedDocument" icon="rectangle" href="/api-reference/parsed-document">
+  <Card title="ParsedDocument" icon="rectangle" href="/dotnet/api/PdfExtractor#parsedocument">
     Typed .NET object returned by `ParseDocument()`. Contains a list of `ParsedPage` objects, each with its blocks, tables, images, and dimensions.
   </Card>
-  <Card title="FormField" icon="list" href="/api-reference/form-field">
+  <Card title="FormField" icon="list" href="/dotnet/api/PdfExtractor#getkeyvalues">
     Represents a single AcroForm field returned by `GetKeyValues()`. Exposes `Name`, `Value`, and `Page` properties.
   </Card>
 </CardGroup>

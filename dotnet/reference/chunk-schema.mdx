@@ -1,12 +1,22 @@
 ---
 title: Chunk Schema
-description: Full schema for each page chunk returned when `pageChunks=true` is passed to ToMarkdown() or ToText().
+description: Full schema for each page chunk returned when `pageChunks=true` is passed to [ToMarkdown()](/dotnet/api/PdfExtractor#tomarkdown) or [ToText()](/dotnet/api/PdfExtractor#totext).
 icon: "layer-group"
 ---
 
+<div id="apiIndicatorBadge">
+  <div class="inner dotnet"></div>
+</div>
+
 ## Overview
 
-When `pageChunks: true` is passed to [ToMarkdown()](/api-reference/to-markdown) or [ToText()](/api-reference/to-text), the return value is a JSON string containing an array of page objects — one per page — rather than a single concatenated string. Each object in the array follows the schema described on this page.
+When `pageChunks: true` is passed to [ToMarkdown()](/dotnet/api/PdfExtractor#tomarkdown) or [ToText()](/dotnet/api/PdfExtractor#totext), the return value is a JSON string containing an array of page objects — one per page — rather than a single concatenated string. Each object in the array follows the schema described on this page.
+
+<img
+  src="/images/chunk-schema.svg"
+  alt="PDF4LLM Chunk Schema Diagram"
+  className="mx-auto mb-0"
+/>
 
 Deserialise the JSON string with your preferred library to work with the chunks in C#:
 
@@ -243,7 +253,7 @@ A list of layout elements detected on the page by the layout analysis engine. Ea
   Character offsets into the page's `text` string: `[start, end]`. Use these to slice the exact text that corresponds to this layout element.
 </ResponseField>
 
-##### Box classes
+#### Box classes
 
 | Class | Description |
 |---|---|
@@ -390,16 +400,16 @@ foreach (JObject chunk in chunks)
 | [`GetKeyValues()`](/dotnet/api/PdfExtractor#getkeyvalues) | Extract form field data from a PDF |
 
 <CardGroup cols={2}>
-  <Card title="JSON layout export" icon="layer-group" href="/guides/json-layout">
+  <Card title="JSON Schema" icon="layer-group" href="/dotnet/reference/JSON-schema">
     Full schema reference for the JSON output, including text, image, table, and drawing blocks with bounding boxes.
   </Card>
-  <Card title="Extract JSON guide" icon="brackets-curly" href="/guides/extract-json">
+  <Card title="Extract JSON guide" icon="brackets-curly" href="/dotnet/guides/extract-JSON">
     Working walkthrough with filtering and pipeline examples.
   </Card>
   <Card title="ToJson()" icon="code" href="/dotnet/api/PdfExtractor#tojson">
-    Full API reference for ToJson().
+    Full API reference for `ToJson()`.
   </Card>
-  <Card title="Form field extraction" icon="table" href="/dotnet/guides/forms">
-    Extracting form data from a PDF as key/value pairs.
+  <Card title="Tables guide" icon="table" href="/dotnet/guides/tables">
+    Best practices for extracting tables with layout data and converting to DataTables or CSV.
   </Card>
 </CardGroup>

@@ -1,10 +1,10 @@
 ---
 title: Extract JSON
-description: Use [ToJson()](/dotnet/api/to-json) to get bounding boxes, layout data, and structured page content for custom pipelines.
+description: Use [ToJson()](/dotnet/api/PdfExtractor#tojson) to get bounding boxes, layout data, and structured page content for custom pipelines.
 icon: "brackets-curly"
 ---
-
-## Overview
+ 
+## Overview 
 
 `ToJson()` returns document content as structured data rather than a Markdown string. Every text block, image, and table on each page is represented as a JSON object with positional metadata attached.
 
@@ -24,7 +24,7 @@ string json = PdfExtractor.ToJson("document.pdf");
 
 ## Output structure
 
-The return value is a JSON array — one object per processed page. See the [JSON layout export guide](/guides/json-layout) for a full field reference.
+The return value is a JSON array — one object per processed page. See the [JSON schema guide](/dotnet/reference/JSON-schema) for a full field reference.
 
 ---
 
@@ -165,7 +165,7 @@ So the extracted styling in plain English is:
 
 ## Page selection
 
-As with [`ToMarkdown()`](/api-reference/to-markdown), you can limit extraction to specific pages:
+As with [`ToMarkdown()`](/dotnet/api/PdfExtractor#tomarkdown), you can limit extraction to specific pages:
 
 ```csharp
 string json = PdfExtractor.ToJson("document.pdf", pages: new List<int> { 0, 1, 2 });
@@ -239,7 +239,7 @@ foreach (JObject page in pages)
 ---
 
 <Note>
-  For the full API signature, see the [ToJson() API reference](/dotnet/api/to-json).
+  For the full API signature, see the [ToJson() API reference](/dotnet/api/PdfExtractor#tojson").
 </Note>
 
 ---
@@ -247,13 +247,13 @@ foreach (JObject page in pages)
 ## Next steps
 
 <CardGroup cols={2}>
-  <Card title="JSON Schema" icon="file-code" href="/dotnet/guides/json-layout">
+  <Card title="JSON Schema" icon="file-code" href="/dotnet/reference/JSON-schema">
     Full field descriptions for every object in the JSON output.
   </Card>
-  <Card title="Extract Markdown" icon="markdown" href="/dotnet/guides/extract-markdown">
+  <Card title="Extract Markdown" icon="markdown" href="/dotnet/guides/extract-Markdown">
     Preserve structure and formatting for LLM pipelines.
   </Card>
-  <Card title="Extract Text" icon="text" href="/dotnet/guides/extract-text">
+  <Card title="Extract Text" icon="text" href="/dotnet/guides/extract-Text">
     Get clean, plain text output.
   </Card>
 </CardGroup>

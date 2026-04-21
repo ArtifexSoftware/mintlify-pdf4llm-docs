@@ -126,10 +126,17 @@
             ]
           },
           {
+            "group": "Integrations",
+            "pages": [
+              "dotnet/integrations/azure"
+            ]
+          },
+          {
             "group": "Reference",
             "pages": [
               "dotnet/api/index",
-              "dotnet/reference/chunk-schema"
+              "dotnet/reference/chunk-schema",
+              "dotnet/reference/JSON-schema"
             ]
           }
         ]

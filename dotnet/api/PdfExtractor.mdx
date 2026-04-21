@@ -1,6 +1,6 @@
 ---
 title: PdfExtractor
-description: Complete API reference for the PdfExtractor static class — every method, property, parameter, return type, and exception, generated from source.
+description: Complete API reference for the `PdfExtractor` static class — every method, property, parameter, return type, and exception, generated from source.
 ---
 
 # Overview
@@ -240,7 +240,7 @@ public static string ToMarkdown(
 </ParamField>
 
 <ParamField path="ocrLanguage" type="string" default='"eng"'>
-  Tesseract language code. Use `+` to combine multiple languages: `"eng+fra"`. The corresponding language data files must be installed. Only relevant when `useOcr` or `forceOcr` is `true`. See [Tesseract Language Packs](/guides/tesseract-language-packs).
+  Tesseract language code. Use `+` to combine multiple languages: `"eng+fra"`. The corresponding language data files must be installed. Only relevant when `useOcr` or `forceOcr` is `true`. See [Tesseract Language Packs](/dotnet/guides/OCR/tesseract-language-packs).
 </ParamField>
 
 <ParamField path="forceOcr" type="bool" default="false">
@@ -383,7 +383,7 @@ public static string ToJson(
 
 ### Returns
 
-`string` — A JSON array, one object per processed page. See [JSON layout export](/guides/json-layout) for the full schema.
+`string` — A JSON array, one object per processed page. See [JSON schema](/dotnet/reference/JSON-schema) for the full schema.
 
 ### Exceptions
 
@@ -583,7 +583,7 @@ All other parameters (`imageDpi`, `imageFormat`, `imagePath`, `ocrDpi`, `pages`,
 
 ### Returns
 
-`ParsedDocument` — A typed .NET object containing one `ParsedPage` per processed page. See [ParsedDocument reference](/api-reference/parsed-document) for the full type hierarchy.
+`ParsedDocument` — A typed .NET object containing one `ParsedPage` per processed page.
 
 ### Exceptions
 
@@ -624,7 +624,7 @@ public static PDFMarkdownReader LlamaMarkdownReader(
 
 ### Returns
 
-`PDFMarkdownReader` — Call `.LoadData()` on the result to load a PDF. See [PDFMarkdownReader reference](/api-reference/pdf-markdown-reader) for full documentation.
+`PDF4LLM.Llama.PDFMarkdownReader` — Call `.LoadData()` on the result to load a PDF.
 
 ---
 

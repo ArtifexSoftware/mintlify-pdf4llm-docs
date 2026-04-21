@@ -1,6 +1,6 @@
 ---
 title: Extract Markdown
-description: A full walkthrough of [ToMarkdown()](/dotnet/api/to-markdown) with common options and use cases.
+description: A full walkthrough of [ToMarkdown()](/dotnet/api/PdfExtractor#tomarkdown) with common options and use cases.
 icon: "markdown"
 ---
 
@@ -66,8 +66,6 @@ foreach (var chunk in chunks)
 }
 ```
 
-This is the recommended mode for RAG pipelines and LLM ingestion workflows. See [LlamaIndex integration](/integrations/llamaindex) for more detail on the structure of the returned documents.
-
 ### Headers and footers
 
 PDF4LLM uses bounding box position to identify and exclude repeating page headers and footers. Filter them by building the page list and using `ToJson` to identify the margin bands, or exclude them at the chunking stage by filtering short leading and trailing lines from each page chunk.
@@ -107,7 +105,7 @@ Image references are embedded as standard Markdown image syntax:
 ![image](assets/images/document.pdf-0-1.png)
 ```
 
-See [Image extraction](/guides/image-extraction) for a full breakdown of image options.
+See [Image extraction](/dotnet/guides/images-and-graphics) for a full breakdown of image options.
 
 ### Tables
 
@@ -167,7 +165,7 @@ foreach (var chunk in chunks)
 ---
 
 <Note>
-  For the full API signature including all parameters and return types, see the [ToMarkdown() API reference](/dotnet/api/to-markdown).
+  For the full API signature including all parameters and return types, see the [ToMarkdown() API reference](/dotnet/api/PdfExtractor#tomarkdown).
 </Note>
 
 ---
@@ -175,10 +173,10 @@ foreach (var chunk in chunks)
 ## Next steps
 
 <CardGroup cols={2}>
-  <Card title="Extract JSON" icon="brackets-curly" href="/dotnet/guides/json-layout">
+  <Card title="Extract JSON" icon="brackets-curly" href="/dotnet/guides/extract-JSON">
     Bounding boxes and layout data for custom pipelines.
   </Card>
-  <Card title="Extract Text" icon="text" href="/guides/plain-text">
+  <Card title="Extract Text" icon="text" href="/dotnet/guides/extract-Text">
     Get clean, plain text output.
   </Card>
 </CardGroup>

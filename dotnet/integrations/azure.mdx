@@ -1,6 +1,7 @@
 ---
 title: Azure OpenAI
 description: Chunk PDFs with PDF4LLM and feed them into Azure OpenAI embeddings and chat completions — end-to-end patterns for .NET RAG pipelines.
+icon: "microsoft"
 ---
 
 # Azure OpenAI
@@ -507,7 +508,17 @@ Very short chunks (fewer than ~20 tokens) and very long chunks (over 512 tokens)
 
 ## Next steps
 
-- [LlamaIndex integration](/integrations/llamaindex) — `PDFMarkdownReader` for structured per-page document loading
-- [Page selection & chunking](/guides/page-chunking) — chunking strategies and token budgeting in detail
-- [Image extraction](/guides/image-extraction) — extracting images for multimodal model input
-- [PdfExtractor API reference](/api-reference/pdf-extractor) — complete method signatures and parameters
+<CardGroup cols={2}>
+  <Card title="PdfExtractor" icon="code" href="/dotnet/api/PdfExtractor">
+    Complete method signatures and parameters.
+  </Card>
+  <Card title="Extract JSON" icon="brackets-curly" href="/dotnet/guides/extract-JSON">
+    Access bounding boxes and layout data for custom pipelines.
+  </Card>
+  <Card title="Image Extraction" icon="image" href="/dotnet/guides/image-extraction">
+    Extracting images for multimodal model input.
+  </Card>
+  <Card title="OCR" icon="eye" href="/dotnet/guides/OCR">
+    Control OCR behaviour and language configuration.
+  </Card>
+</CardGroup>
