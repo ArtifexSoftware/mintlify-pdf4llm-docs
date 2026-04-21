@@ -4,6 +4,10 @@ description: Chunk PDFs with PDF4LLM and feed them into Azure OpenAI embeddings 
 icon: "microsoft"
 ---
 
+<div id="apiIndicatorBadge">
+  <div class="inner dotnet"></div>
+</div>
+
 # Azure OpenAI
 
 This guide shows how to connect PDF4LLM's extraction output to Azure OpenAI — specifically, how to embed extracted text using `text-embedding-3-small` (or equivalent) and how to pass document content to a chat completion endpoint for summarisation, Q&A, and RAG.
@@ -515,7 +519,7 @@ Very short chunks (fewer than ~20 tokens) and very long chunks (over 512 tokens)
   <Card title="Extract JSON" icon="brackets-curly" href="/dotnet/guides/extract-JSON">
     Access bounding boxes and layout data for custom pipelines.
   </Card>
-  <Card title="Image Extraction" icon="image" href="/dotnet/guides/image-extraction">
+  <Card title="Image Extraction" icon="image" href="/dotnet/guides/images-and-graphics">
     Extracting images for multimodal model input.
   </Card>
   <Card title="OCR" icon="eye" href="/dotnet/guides/OCR">

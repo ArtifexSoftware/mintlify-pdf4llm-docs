@@ -4,6 +4,10 @@ description: "How to use OCR engines other than Tesseract with PyMuPDF4LLM, and 
 icon: "plug"
 ---
 
+<div id="apiIndicatorBadge">
+  <div class="inner pymupdf"></div>
+</div>
+
 # Overview 
 
 PyMuPDF4LLM supports default OCR functions. They come in the form of plugins that are present in its `ocr` subpackage. They are based on currently 3 popular OCR engines, Tesseract OCR, RapidOCR and PaddleOCR. Some engines can be combined to make use of their strengths and mitigate their weaknesses. For example, Tesseract OCR is very good at **recognizing** text, while RapidOCR is better at **detecting** text bounding boxes in images with complex backgrounds. By combining the two engines, we can achieve better overall OCR results while at the same time also reducing the overall OCR processing time.

@@ -4,6 +4,10 @@ description: Write extracted Markdown, JSON, and plain text to disk using System
 icon: "floppy-disk"
 ---
 
+<div id="apiIndicatorBadge">
+  <div class="inner dotnet"></div>
+</div>
+
 ## Overview
 
 PDF4LLM's extraction methods return plain .NET strings — writing them to disk is handled by the standard library. The recommended approach is `System.IO.File.WriteAllText()`, which is straightforward, cross-platform, and available without additional dependencies.
