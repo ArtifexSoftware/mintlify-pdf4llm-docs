@@ -1,0 +1,186 @@
+---
+title: Extract Markdown
+description: A full walkthrough of [ToMarkdown()](/dotnet/api/PdfExtractor#tomarkdown) with common options and use cases.
+icon: "markdown"
+---
+
+<div id="apiIndicatorBadge">
+  <div class="inner dotnet"></div>
+</div>
+
+## Overview
+
+`ToMarkdown()` is the primary extraction method in PDF4LLM. It reads a document and returns its content as a Markdown string, preserving headings, lists, tables, code blocks, images, and reading order as closely as possible.
+
+```csharp
+using MuPDF.NET;
+using PDF4LLM;
+
+string mdText = PdfExtractor.ToMarkdown("document.pdf");
+```
+
+---
+
+## Common options
+
+### Page selection
+
+Extract only specific pages by passing a list of zero-based page indices:
+
+```csharp
+// Extract pages 1, 2, and 3 (zero-based: 0, 1, 2)
+string mdText = PdfExtractor.ToMarkdown(
+    "document.pdf",
+    pages: new List<int> { 0, 1, 2 }
+);
+```
+
+Extract every other page by building the page list with Linq:
+
+```csharp
+// Extract every other page
+Document doc         = new Document("document.pdf");
+var      everyOther  = Enumerable.Range(0, doc.PageCount)
+                                 .Where(i => i % 2 == 0)
+                                 .ToList();
+
+string mdText = PdfExtractor.ToMarkdown(doc, pages: everyOther);
+doc.Close();
+```
+
+<Tip>
+  For large documents, limiting extraction to the pages you need can dramatically reduce processing time — especially when OCR is involved.
+</Tip>
+
+### Per-page chunks
+
+Use `LlamaMarkdownReader` to return one document object per page instead of a single concatenated string. Each chunk includes the page's Markdown text and associated metadata:
+
+```csharp
+var reader = PdfExtractor.LlamaMarkdownReader();
+var chunks = reader.LoadData("document.pdf");
+
+foreach (var chunk in chunks)
+{
+    int    page = (int)chunk.ExtraInfo["page"];
+    string text = chunk.Text;
+
+    Console.WriteLine($"Page {page}");
+    Console.WriteLine(text);
+}
+```
+
+### Headers and footers
+
+PDF4LLM uses bounding box position to identify and exclude repeating page headers and footers. Filter them by building the page list and using `ToJson` to identify the margin bands, or exclude them at the chunking stage by filtering short leading and trailing lines from each page chunk.
+
+For documents with consistent header and footer heights, the most reliable approach is to filter blocks by their bounding box position using `ParseDocument`:
+
+```csharp
+ParsedDocument parsed = PdfExtractor.ParseDocument("document.pdf");
+
+foreach (ParsedPage page in parsed.Pages)
+{
+    // Exclude blocks in the top and bottom 60pt margin bands
+    var bodyBlocks = page.Blocks
+        .Where(b => b.BoundingBox.Y0 > 60 && b.BoundingBox.Y1 < (page.Height - 60))
+        .ToList();
+
+    // Render body blocks only
+}
+```
+
+### Images
+
+To extract embedded images and reference them inline in the Markdown output:
+
+```csharp
+string mdText = PdfExtractor.ToMarkdown(
+    "document.pdf",
+    writeImages:  true,
+    imagePath:    "assets/images/",
+    imageFormat:  "png"
+);
+```
+
+Image references are embedded as standard Markdown image syntax:
+
+```markdown
+![image](assets/images/document.pdf-0-1.png)
+```
+
+See [Image extraction](/dotnet/guides/images-and-graphics) for a full breakdown of image options.
+
+### Tables
+
+Table extraction runs automatically. PDF4LLM renders detected tables as GitHub-flavoured Markdown tables:
+
+```markdown
+| Column A | Column B | Column C |
+|----------|----------|----------|
+| Value 1  | Value 2  | Value 3  |
+```
+
+
+---
+
+## Full example
+
+A more complete call combining several options:
+
+```csharp
+using MuPDF.NET;
+using PDF4LLM;
+using System.IO;
+
+// Ensure image output directory exists
+Directory.CreateDirectory("assets/");
+
+// Extract the first five pages with images
+string mdText = PdfExtractor.ToMarkdown(
+    "report.pdf",
+    pages:       new List<int> { 0, 1, 2, 3, 4 },   // first five pages only
+    writeImages: true,                                  // extract images to disk
+    imagePath:   "assets/",                             // image output directory
+    imageFormat: "png"                                  // image format
+);
+
+// Save the full output as a single Markdown file
+File.WriteAllText("output/report.md", mdText, System.Text.Encoding.UTF8);
+```
+
+To save each page as a separate file, use `LlamaMarkdownReader` for per-page output:
+
+```csharp
+var reader = PdfExtractor.LlamaMarkdownReader();
+var chunks = reader.LoadData("report.pdf");
+
+Directory.CreateDirectory("output");
+
+foreach (var chunk in chunks)
+{
+    int    pageNum  = (int)chunk.ExtraInfo["page"];
+    string filePath = $"output/page-{pageNum}.md";
+
+    File.WriteAllText(filePath, chunk.Text, System.Text.Encoding.UTF8);
+}
+```
+
+---
+
+<Note>
+  For the full API signature including all parameters and return types, see the [ToMarkdown() API reference](/dotnet/api/PdfExtractor#tomarkdown).
+</Note>
+
+---
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Extract JSON" icon="brackets-curly" href="/dotnet/guides/extract-JSON">
+    Bounding boxes and layout data for custom pipelines.
+  </Card>
+  <Card title="Extract Text" icon="text" href="/dotnet/guides/extract-Text">
+    Get clean, plain text output.
+  </Card>
+</CardGroup>

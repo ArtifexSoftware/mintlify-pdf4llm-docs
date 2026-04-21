@@ -1,0 +1,159 @@
+---
+title: Extract Text
+description: Use [ToText()](/dotnet/api/PdfExtractor#totext) to get clean, plain text output stripped of all Markdown formatting.
+icon: "text"
+---
+
+<div id="apiIndicatorBadge">
+  <div class="inner dotnet"></div>
+</div>
+
+## Overview
+
+`ToText()` extracts the content of a document as a plain text string — no Markdown syntax, no bounding boxes, no metadata. It's the simplest output format and the right choice when your downstream tool doesn't need formatting or structure, just the words.
+
+```csharp
+using PDF4LLM;
+
+string text = PdfExtractor.ToText("document.pdf");
+Console.WriteLine(text);
+```
+
+---
+
+## When to use plain text
+
+| Use case | Recommended format |
+|---|---|
+| Search indexing | ✅ Plain text |
+| Keyword extraction / NLP | ✅ Plain text |
+| LLM summarisation (simple) | ✅ Plain text |
+| RAG pipelines with chunking | ⚠️ Consider Markdown or page chunks |
+| Preserving document structure | ❌ Use Markdown |
+| Custom layout pipelines | ❌ Use JSON |
+
+<Tip>
+  If you're feeding content into an LLM and document structure matters — headings, lists, tables — use `ToMarkdown()` instead. LLMs handle Markdown well and the added structure improves output quality.
+</Tip>
+
+---
+
+## Page selection
+
+Extract only the pages you need:
+
+```csharp
+string text = PdfExtractor.ToText(
+    "document.pdf",
+    pages: new List<int> { 0, 1, 2 }
+);
+```
+
+---
+
+## Per-page chunks
+
+Use `LlamaMarkdownReader` to return one document object per page instead of a single concatenated string. Each chunk includes the page's plain text and a metadata dictionary with the page number and source file path:
+
+```csharp
+var reader = PdfExtractor.LlamaMarkdownReader();
+var chunks = reader.LoadData("document.pdf");
+
+foreach (var chunk in chunks)
+{
+    int    page     = (int)chunk.ExtraInfo["page"];
+    string text     = chunk.Text;
+
+    Console.WriteLine($"Page {page}: {text.Length} chars");
+}
+```
+
+Each chunk's `Text` property contains the plain Markdown for that page. For plain text specifically, strip Markdown syntax after loading, or call `ToText` per page using the `pages` parameter:
+
+```csharp
+using MuPDF.NET;
+
+Document doc    = new Document("document.pdf");
+var      chunks = new List<(int Page, string Text)>();
+
+for (int i = 0; i < doc.PageCount; i++)
+{
+    string pageText = PdfExtractor.ToText(doc, pages: new List<int> { i });
+    chunks.Add((i, pageText));
+}
+
+doc.Close();
+
+foreach (var chunk in chunks)
+    Console.WriteLine($"Page {chunk.Page}: {chunk.Text.Length} chars");
+```
+
+---
+
+## Saving to a file
+
+Write the output to a `.txt` file:
+
+```csharp
+using System.IO;
+using PDF4LLM;
+
+string text = PdfExtractor.ToText("document.pdf");
+File.WriteAllText("output.txt", text, System.Text.Encoding.UTF8);
+```
+
+To save each page as a separate file:
+
+```csharp
+using MuPDF.NET;
+using System.IO;
+
+Document doc = new Document("document.pdf");
+Directory.CreateDirectory("output");
+
+for (int i = 0; i < doc.PageCount; i++)
+{
+    string pageText = PdfExtractor.ToText(doc, pages: new List<int> { i });
+    File.WriteAllText($"output/page-{i}.txt", pageText, System.Text.Encoding.UTF8);
+}
+
+doc.Close();
+```
+
+---
+
+## OCR behaviour
+
+Like `ToMarkdown()`, `ToText()` can invoke Tesseract OCR on pages that contain no selectable text. Pass `useOcr: true` to enable it:
+
+```csharp
+// Enable OCR on all pages
+string text = PdfExtractor.ToText("document.pdf", useOcr: true);
+
+// Enable OCR with a specific language
+string text = PdfExtractor.ToText("document.pdf", useOcr: true, ocrLanguage: "fra");
+```
+
+See [OCR](/dotnet/guides/OCR) for a full walkthrough of Tesseract installation, language codes, and patterns for mixed documents.
+
+---
+
+<Note>
+  For the full API signature, see the [ToText() API reference](/dotnet/api/PdfExtractor#totext).
+</Note>
+
+---
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Extract Markdown" icon="markdown" href="/dotnet/guides/extract-Markdown">
+    Preserve structure and formatting for LLM pipelines.
+  </Card>
+  <Card title="Extract JSON" icon="brackets-curly" href="/dotnet/guides/extract-JSON">
+    Access bounding boxes and layout data for custom pipelines.
+  </Card>
+  <Card title="OCR" icon="eye" href="/dotnet/guides/OCR">
+    Control OCR behaviour and language configuration.
+  </Card>
+</CardGroup>

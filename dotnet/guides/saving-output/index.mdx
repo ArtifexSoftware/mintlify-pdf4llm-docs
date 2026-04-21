@@ -1,0 +1,239 @@
+---
+title: Saving Output
+description: Write extracted Markdown, JSON, and plain text to disk using System.IO.
+icon: "floppy-disk"
+---
+
+<div id="apiIndicatorBadge">
+  <div class="inner dotnet"></div>
+</div>
+
+## Overview
+
+PDF4LLM's extraction methods return plain .NET strings — writing them to disk is handled by the standard library. The recommended approach is `System.IO.File.WriteAllText()`, which is straightforward, cross-platform, and available without additional dependencies.
+
+---
+
+## Saving Markdown
+
+```csharp
+using System.IO;
+using PDF4LLM;
+
+string mdText = PdfExtractor.ToMarkdown("document.pdf");
+File.WriteAllText("output.md", mdText, System.Text.Encoding.UTF8);
+```
+
+<Tip>
+  Always pass `System.Text.Encoding.UTF8` explicitly when writing text files. The two-argument overload of `File.WriteAllText` uses the platform default encoding, which can silently corrupt special characters, symbols, and non-Latin scripts on Windows.
+</Tip>
+
+---
+
+## Saving JSON
+
+`ToJson()` returns a JSON string directly — no additional serialisation step is needed:
+
+```csharp
+using System.IO;
+using PDF4LLM;
+
+string json = PdfExtractor.ToJson("document.pdf");
+File.WriteAllText("output.json", json, System.Text.Encoding.UTF8);
+```
+
+The returned JSON is compact by default. To write human-readable indented JSON, round-trip it through `System.Text.Json`:
+
+```csharp
+using System.IO;
+using System.Text.Json;
+using PDF4LLM;
+
+string   json        = PdfExtractor.ToJson("document.pdf");
+var      parsed      = JsonSerializer.Deserialize<object>(json);
+string   indented    = JsonSerializer.Serialize(parsed, new JsonSerializerOptions { WriteIndented = true });
+
+File.WriteAllText("output.json", indented, System.Text.Encoding.UTF8);
+```
+
+For large documents where file size matters, skip the indentation step and write the compact string directly.
+
+---
+
+## Saving plain text
+
+```csharp
+using System.IO;
+using PDF4LLM;
+
+string text = PdfExtractor.ToText("document.pdf");
+File.WriteAllText("output.txt", text, System.Text.Encoding.UTF8);
+```
+
+---
+
+## Saving per-page chunks
+
+When using `LlamaMarkdownReader`, save each page as a separate file using the page number from the chunk metadata to name each file:
+
+```csharp
+using System.IO;
+using PDF4LLM;
+
+string outputDir = "output/pages";
+Directory.CreateDirectory(outputDir);
+
+var reader = PdfExtractor.LlamaMarkdownReader();
+var chunks = reader.LoadData("document.pdf");
+
+foreach (var chunk in chunks)
+{
+    int    pageNum  = (int)chunk.ExtraInfo["page"];
+    string filePath = Path.Combine(outputDir, $"page-{pageNum}.md");
+
+    File.WriteAllText(filePath, chunk.Text, System.Text.Encoding.UTF8);
+    Console.WriteLine($"Saved {filePath}");
+}
+```
+
+---
+
+## Saving with a matching filename
+
+To derive the output filename from the input document automatically:
+
+```csharp
+using System.IO;
+using PDF4LLM;
+
+string inputPath  = "reports/annual-report-2025.pdf";
+string mdText     = PdfExtractor.ToMarkdown(inputPath);
+
+string outputPath = Path.ChangeExtension(inputPath, ".md");
+File.WriteAllText(outputPath, mdText, System.Text.Encoding.UTF8);
+
+Console.WriteLine($"Saved to {outputPath}");
+// Saved to reports/annual-report-2025.md
+```
+
+`Path.ChangeExtension()` swaps the file extension cleanly, keeping the same directory and stem.
+
+---
+
+## Saving to a different directory
+
+To write output to a different folder while keeping the original filename:
+
+```csharp
+using System.IO;
+using PDF4LLM;
+
+string inputPath  = "source/document.pdf";
+string outputDir  = "extracted";
+Directory.CreateDirectory(outputDir);
+
+string mdText     = PdfExtractor.ToMarkdown(inputPath);
+string outputName = Path.ChangeExtension(Path.GetFileName(inputPath), ".md");
+string outputPath = Path.Combine(outputDir, outputName);
+
+File.WriteAllText(outputPath, mdText, System.Text.Encoding.UTF8);
+
+Console.WriteLine($"Saved to {outputPath}");
+// Saved to extracted/document.md
+```
+
+---
+
+## Processing multiple files
+
+To extract and save output for an entire folder of PDFs:
+
+```csharp
+using System.IO;
+using PDF4LLM;
+
+string inputDir  = "documents/";
+string outputDir = "extracted/";
+Directory.CreateDirectory(outputDir);
+
+string[] pdfFiles = Directory.GetFiles(inputDir, "*.pdf");
+Console.WriteLine($"Found {pdfFiles.Length} PDF(s)");
+
+foreach (string pdfPath in pdfFiles)
+{
+    Console.WriteLine($"Processing {Path.GetFileName(pdfPath)}...");
+    try
+    {
+        string mdText     = PdfExtractor.ToMarkdown(pdfPath);
+        string outputName = Path.ChangeExtension(Path.GetFileName(pdfPath), ".md");
+        string outputPath = Path.Combine(outputDir, outputName);
+
+        File.WriteAllText(outputPath, mdText, System.Text.Encoding.UTF8);
+        Console.WriteLine($"  ✓ Saved to {outputPath}");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"  ✗ Failed: {ex.Message}");
+    }
+}
+
+Console.WriteLine("Done.");
+```
+
+---
+
+## Saving images alongside Markdown
+
+When `writeImages: true` is used, image files are written to disk automatically during extraction. Create the image directory first, then save the Markdown file alongside it:
+
+```csharp
+using System.IO;
+using PDF4LLM;
+
+string imageDir = "output/images";
+Directory.CreateDirectory(imageDir);
+
+string mdText = PdfExtractor.ToMarkdown(
+    "document.pdf",
+    writeImages:  true,
+    imagePath:    imageDir,
+    imageFormat:  "png"
+);
+
+File.WriteAllText("output/document.md", mdText, System.Text.Encoding.UTF8);
+```
+
+<Note>
+  Image paths in the Markdown output are relative to wherever the `.md` file is opened from. Keep your Markdown file and image directory in the same parent folder to ensure image links resolve correctly.
+</Note>
+
+---
+
+## File format summary
+
+| Output | Method | Extension | How to write |
+|---|---|---|---|
+| Markdown | `ToMarkdown()` | `.md` | `File.WriteAllText()` |
+| JSON | `ToJson()` | `.json` | `File.WriteAllText()` directly |
+| Plain text | `ToText()` | `.txt` | `File.WriteAllText()` |
+| Per-page chunks | `LlamaMarkdownReader.LoadData()` | `.md` per page | `File.WriteAllText()` in a loop |
+| Images | `ToMarkdown(writeImages: true)` | `.png` / `.jpg` | Written automatically to `imagePath` |
+
+---
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Extract Markdown" icon="markdown" href="/dotnet/guides/extract-Markdown">
+    Full walkthrough of ToMarkdown() with all common options.
+  </Card>
+  <Card title="Extract JSON" icon="brackets-curly" href="/dotnet/guides/extract-JSON">
+    Bounding boxes and layout data for custom pipelines.
+  </Card>
+  <Card title="Extract Text" icon="align-left" href="/dotnet/guides/extract-Text">
+    Plain text extraction and whitespace handling.
+  </Card>
+  <Card title="Images & Graphics" icon="image" href="/dotnet/guides/images-and-graphics">
+    Controlling image extraction, format, and output path.
+  </Card>
+</CardGroup>

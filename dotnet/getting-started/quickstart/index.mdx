@@ -1,0 +1,124 @@
+---
+title: Quickstart
+description: Go from zero to a working PDF-to-Markdown conversion in under five minutes.
+icon: "bolt"
+---
+
+<div id="apiIndicatorBadge">
+  <div class="inner dotnet"></div>
+</div>
+
+# Quickstart
+
+This page gets you from a blank terminal to a working PDF extraction in as few steps as possible. No prior knowledge of MuPDF.NET required.
+
+---
+
+## 1. Create a project
+
+```bash
+dotnet new console -n Pdf4LlmDemo
+cd Pdf4LlmDemo
+```
+
+---
+
+## 2. Install PDF4LLM
+
+```bash
+dotnet add package PDF4LLM
+```
+
+---
+
+## 3. Add a PDF
+
+Copy any PDF into the project folder and note its filename. If you don't have one to hand, download a sample:
+
+```bash
+curl -o sample.pdf https://www.w3.org/WAI/WCAG21/wcag-2.1.pdf
+```
+
+---
+
+## 4. Convert to Markdown
+
+Replace the contents of `Program.cs` with:
+
+```csharp
+using MuPDF.NET;
+using PDF4LLM;
+
+Document doc = new Document("sample.pdf");
+
+string markdown = PdfExtractor.ToMarkdown(doc);
+
+doc.Close();
+
+Console.WriteLine(markdown);
+```
+
+Run it:
+
+```bash
+dotnet run
+```
+
+You should see the PDF content printed to the console as Markdown — headings prefixed with `#`, tables as pipe syntax, bold and italic preserved.
+
+---
+
+## 5. Save the output
+
+Write the result to a file instead of printing:
+
+```csharp
+using MuPDF.NET;
+using PDF4LLM;
+using System.IO;
+
+Document doc      = new Document("sample.pdf");
+string   markdown = PdfExtractor.ToMarkdown(doc);
+doc.Close();
+
+File.WriteAllText("output.md", markdown, System.Text.Encoding.UTF8);
+Console.WriteLine("Saved to output.md");
+```
+
+---
+
+## 6. Try the other output formats
+
+Switch the extraction method to see different representations of the same document.
+
+**Plain text** — same layout analysis, no Markdown syntax:
+
+```csharp
+string text = PdfExtractor.ToText(doc);
+```
+
+**JSON** — full layout structure with bounding boxes and block types:
+
+```csharp
+string json = PdfExtractor.ToJson(doc);
+File.WriteAllText("layout.json", json, System.Text.Encoding.UTF8);
+```
+
+---
+
+## 7. Extract specific pages
+
+Pass a zero-based list to process only the pages you need:
+
+```csharp
+string markdown = PdfExtractor.ToMarkdown(
+    doc,
+    pages: new List<int> { 0, 1, 2 }
+);
+```
+
+---
+
+## You're up and running
+
+That's the core loop: open a `Document`, call an extractor method, close the document. Everything else — OCR, image extraction, LlamaIndex loading, form fields — builds on this pattern.

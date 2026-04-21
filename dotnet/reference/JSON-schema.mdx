@@ -1,0 +1,815 @@
+---
+title: JSON Schema
+description: Full field reference for the structured output returned by [ToJson()](/dotnet/api/PdfExtractor#tojson).
+icon: "brackets-curly"
+---
+
+<div id="apiIndicatorBadge">
+  <div class="inner dotnet"></div>
+</div>
+
+## Overview
+
+`ToJson()` returns a JSON string representing a single parsed PDF — its pages, layout boxes, text content, tables, images, and metadata. Deserialise it with your preferred library to traverse the hierarchy.
+
+<img
+  src="/images/json-schema.svg"
+  alt="PDF4LLM JSON Schema Diagram"
+  className="mx-auto mb-0"
+/>
+
+```csharp
+using Newtonsoft.Json.Linq;
+using PDF4LLM;
+
+string  json = PdfExtractor.ToJson("document.pdf");
+JObject root = JObject.Parse(json);
+```
+
+This page documents every object and field in the output hierarchy.
+
+<Note>
+  Positional coordinates are in PDF points (1 point = 1/72 inch). The origin `(0, 0)` is the **top-left** corner of the page.
+</Note>
+
+<Accordion title="Show full example">
+```json
+{
+  "filename": "hello-world.pdf",
+  "page_count": 2,
+  "toc": [],
+  "pages": [
+    {
+      "page_number": 1,
+      "width": 595.2,
+      "height": 841.92,
+      "boxes": [
+        {
+          "x0": 72,
+          "y0": 72,
+          "x1": 334.47,
+          "y1": 273.38,
+          "boxclass": "picture",
+          "image": "images/hello-world.pdf-0001-00.png",
+          "table": null,
+          "textlines": []
+        },
+        {
+          "x0": 70.69,
+          "y0": 295.88,
+          "x1": 197.28,
+          "y1": 304.63,
+          "boxclass": "text",
+          "image": null,
+          "table": null,
+          "textlines": [
+            {
+              "bbox": [70.69, 295.88, 197.28, 304.63],
+              "spans": [
+                {
+                  "size": 12,
+                  "flags": 0,
+                  "font": "Arial",
+                  "color": 0,
+                  "alpha": 255,
+                  "text": "Hello World!",
+                  "origin": [70.69, 304.47],
+                  "bbox": [70.69, 295.88, 136.09, 304.61],
+                  "line": 0,
+                  "block": 0,
+                  "dir": [1, 0]
+                },
+                {
+                  "size": 12,
+                  "flags": 20,
+                  "font": "MinionPro-Bold",
+                  "color": 0,
+                  "alpha": 255,
+                  "text": "This is bold",
+                  "origin": [138.83, 304.47],
+                  "bbox": [138.83, 296.03, 197.28, 304.63],
+                  "line": 0,
+                  "block": 0,
+                  "dir": [1, 0]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "full_ocred": false,
+      "text_ocred": false,
+      "fulltext": [...],
+      "words": [],
+      "links": []
+    },
+    {
+      "page_number": 2,
+      "width": 595.2,
+      "height": 841.92,
+      "boxes": [
+        {
+          "x0": 72,
+          "y0": 72,
+          "x1": 524,
+          "y1": 118,
+          "boxclass": "table",
+          "image": null,
+          "table": {
+            "bbox": [71.15, 72.19, 523.22, 117.68],
+            "row_count": 3,
+            "col_count": 4,
+            "cells": [
+              [[71.15, 72.19, 184.6, 87.36], [184.6, 72.19, 297.16, 87.36], ...],
+              ...
+            ],
+            "extract": [
+              ["A",  "B",  "C",  "D" ],
+              ["A1", "B1", "C1", "D1"],
+              ["A2", "B2", "C2", "D2"]
+            ],
+            "markdown": "|A|B|C|D|\n|---|---|---|---|\n|A1|B1|C1|D1|\n|A2|B2|C2|D2|\n\n"
+          },
+          "textlines": null
+        }
+      ],
+      "full_ocred": false,
+      "text_ocred": false,
+      "fulltext": [...],
+      "words": [],
+      "links": []
+    }
+  ],
+  "metadata": {
+    "format": "PDF 1.6",
+    "title": "",
+    "author": "",
+    "subject": "",
+    "keywords": "",
+    "creator": "",
+    "producer": "",
+    "creationDate": "D:20240722172345Z",
+    "modDate": "D:20260318153118Z",
+    "trapped": "",
+    "encryption": null
+  }
+}
+```
+</Accordion>
+
+---
+
+## Root object
+
+The top-level object returned for every extraction.
+
+<Accordion title="Example">
+
+```json
+{
+  "filename": "hello-world.pdf",
+  "page_count": 2,
+  "toc": [],
+  "pages": [...],
+  "metadata": {...}
+}
+```
+
+</Accordion>
+
+<ParamField body="filename" type="string">
+  The name of the source PDF file that was parsed.
+</ParamField>
+
+<ParamField body="page_count" type="number">
+  Total number of pages in the PDF.
+</ParamField>
+
+<ParamField body="toc" type="array">
+  Table of contents entries extracted from the PDF. Each entry is an array of `[page_index, title, page_number]`. Empty when the PDF has no bookmarks or outline.
+</ParamField>
+
+<ParamField body="pages" type="array">
+  Array of [page objects](#page-object), one per page in the PDF.
+</ParamField>
+
+<ParamField body="metadata" type="object">
+  PDF document metadata. See [metadata object](#metadata-object).
+</ParamField>
+
+#### Accessing the root in C\#
+
+```csharp
+JObject root      = JObject.Parse(PdfExtractor.ToJson("document.pdf"));
+string  filename  = root["filename"]!.Value<string>()!;
+int     pageCount = root["page_count"]!.Value<int>();
+JArray  pages     = (JArray)root["pages"]!;
+JArray  toc       = (JArray)root["toc"]!;
+```
+
+---
+
+## Page object
+
+Represents a single page of the PDF. Found in `pages[]`.
+
+<Accordion title="Example">
+
+```json
+{
+  "page_number": 1,
+  "width": 595.2,
+  "height": 841.92,
+  "boxes": [...],
+  "fulltext": [...],
+  "full_ocred": false,
+  "text_ocred": false,
+  "words": [],
+  "links": []
+}
+```
+
+</Accordion>
+
+<ParamField body="page_number" type="number">
+  1-based index of this page within the document.
+</ParamField>
+
+<ParamField body="width" type="number">
+  Page width in PDF points. A standard A4 page is 595.28 pt wide.
+</ParamField>
+
+<ParamField body="height" type="number">
+  Page height in PDF points. A standard A4 page is 841.89 pt tall.
+</ParamField>
+
+<ParamField body="boxes" type="array">
+  Detected content regions on the page. Each entry is a [box object](#box-object). Boxes are classified as `"text"`, `"picture"`, or `"table"`.
+</ParamField>
+
+<ParamField body="fulltext" type="array">
+  Raw text blocks extracted directly from the PDF's content stream, independent of the layout box structure. Each entry is a [fulltext block](#fulltext-block). Reflects the logical reading order as encoded in the PDF's internal stream.
+</ParamField>
+
+<ParamField body="full_ocred" type="boolean">
+  `true` if the entire page was processed through OCR because no native text layer was found.
+</ParamField>
+
+<ParamField body="text_ocred" type="boolean">
+  `true` if individual text regions on the page were OCR'd rather than extracted natively.
+</ParamField>
+
+<ParamField body="words" type="array">
+  Word-level bounding boxes. Empty in the default output; populated when `extractWords` is enabled.
+</ParamField>
+
+<ParamField body="links" type="array">
+  Hyperlinks found on the page. Empty when no links are present.
+</ParamField>
+
+#### Iterating pages in C\#
+
+```csharp
+JObject root  = JObject.Parse(PdfExtractor.ToJson("document.pdf"));
+JArray  pages = (JArray)root["pages"]!;
+
+foreach (JObject page in pages)
+{
+    int    pageNumber = page["page_number"]!.Value<int>();
+    double width      = page["width"]!.Value<double>();
+    double height     = page["height"]!.Value<double>();
+    bool   wasOcred   = page["full_ocred"]!.Value<bool>();
+
+    Console.WriteLine($"Page {pageNumber} ({width}×{height}pt, OCR: {wasOcred})");
+}
+```
+
+---
+
+## Box object
+
+A detected content region on a page. Found in `pages[].boxes[]`.
+
+Boxes are the primary layout unit. Each box covers a rectangular area and is classified into one of three types: `"text"`, `"picture"`, or `"table"`. Which fields are populated depends on `boxclass`.
+
+<AccordionGroup>
+
+  <Accordion title="Picture box example">
+
+```json
+{
+  "x0": 72,
+  "y0": 72,
+  "x1": 334.47,
+  "y1": 273.38,
+  "boxclass": "picture",
+  "image": "images/hello-world.pdf-0001-00.png",
+  "table": null,
+  "textlines": []
+}
+```
+
+  </Accordion>
+
+  <Accordion title="Text box example">
+
+```json
+{
+  "x0": 70.69,
+  "y0": 295.88,
+  "x1": 197.28,
+  "y1": 304.63,
+  "boxclass": "text",
+  "image": null,
+  "table": null,
+  "textlines": [...]
+}
+```
+
+  </Accordion>
+
+  <Accordion title="Table box example">
+
+```json
+{
+  "x0": 72,
+  "y0": 72,
+  "x1": 524,
+  "y1": 118,
+  "boxclass": "table",
+  "image": null,
+  "table": {...},
+  "textlines": null
+}
+```
+
+  </Accordion>
+
+</AccordionGroup>
+
+<ParamField body="x0" type="number">
+  Left edge of the box in PDF points, measured from the left of the page.
+</ParamField>
+
+<ParamField body="y0" type="number">
+  Top edge of the box in PDF points, measured from the top of the page.
+</ParamField>
+
+<ParamField body="x1" type="number">
+  Right edge of the box in PDF points.
+</ParamField>
+
+<ParamField body="y1" type="number">
+  Bottom edge of the box in PDF points.
+</ParamField>
+
+<ParamField body="boxclass" type="string">
+  Classification of the content region. One of:
+
+  - `"text"` — contains text lines and spans
+  - `"picture"` — contains an embedded image or graphic
+  - `"table"` — contains a detected table structure
+</ParamField>
+
+<ParamField body="image" type="string | null">
+  Relative path to the extracted image file when `boxclass` is `"picture"`. `null` for all other box types.
+</ParamField>
+
+<ParamField body="table" type="object | null">
+  A [table object](#table-object) when `boxclass` is `"table"`. `null` for all other box types.
+</ParamField>
+
+<ParamField body="textlines" type="array | null">
+  Array of [textline objects](#textline-object) when `boxclass` is `"text"`. Empty array `[]` for picture boxes. `null` for table boxes.
+</ParamField>
+
+#### Iterating boxes by type in C\#
+
+```csharp
+foreach (JObject page in pages)
+{
+    foreach (JObject box in page["boxes"]!)
+    {
+        string boxclass = box["boxclass"]!.Value<string>()!;
+
+        switch (boxclass)
+        {
+            case "text":
+                foreach (JObject line in box["textlines"]!)
+                    foreach (JObject span in line["spans"]!)
+                        Console.WriteLine(span["text"]!.Value<string>());
+                break;
+
+            case "picture":
+                string? imagePath = box["image"]?.Value<string>();
+                Console.WriteLine($"Image: {imagePath}");
+                break;
+
+            case "table":
+                var rows = box["table"]!["extract"]!
+                    .ToObject<List<List<string>>>()!;
+                Console.WriteLine($"Table: {rows.Count} rows");
+                break;
+        }
+    }
+}
+```
+
+---
+
+## Table object
+
+Structured data for a detected table. Found in `boxes[].table` when `boxclass` is `"table"`.
+
+<Accordion title="Example">
+
+```json
+{
+  "bbox": [71.15, 72.19, 523.22, 117.68],
+  "row_count": 3,
+  "col_count": 4,
+  "cells": [
+    [[71.15, 72.19, 184.6, 87.36], [184.6, 72.19, 297.16, 87.36], ...],
+    ...
+  ],
+  "extract": [
+    ["A",  "B",  "C",  "D" ],
+    ["A1", "B1", "C1", "D1"],
+    ["A2", "B2", "C2", "D2"]
+  ],
+  "markdown": "|A|B|C|D|\n|---|---|---|---|\n|A1|B1|C1|D1|\n|A2|B2|C2|D2|\n\n"
+}
+```
+
+</Accordion>
+
+<ParamField body="bbox" type="number[4]">
+  Bounding box of the entire table as `[x0, y0, x1, y1]` in PDF points.
+</ParamField>
+
+<ParamField body="row_count" type="number">
+  Number of rows in the table, including any header row.
+</ParamField>
+
+<ParamField body="col_count" type="number">
+  Number of columns in the table.
+</ParamField>
+
+<ParamField body="cells" type="array">
+  A 3D array of cell bounding boxes. `cells[row][col]` gives `[x0, y0, x1, y1]` for that cell in PDF points. Useful for mapping extracted text back to exact positions on the page.
+</ParamField>
+
+<ParamField body="extract" type="array">
+  A 2D array of cell text values. `extract[row][col]` gives the string content of that cell. The first row is typically the header row.
+</ParamField>
+
+<ParamField body="markdown" type="string">
+  The table pre-rendered as a Markdown pipe table string, ready for display or further processing.
+</ParamField>
+
+#### Accessing table data in C\#
+
+```csharp
+JObject tableObj = (JObject)box["table"]!;
+int     rowCount = tableObj["row_count"]!.Value<int>();
+int     colCount = tableObj["col_count"]!.Value<int>();
+
+var rows = tableObj["extract"]!.ToObject<List<List<string>>>()!;
+
+// Header row
+Console.WriteLine(string.Join(" | ", rows[0]));
+
+// Data rows
+foreach (var row in rows.Skip(1))
+    Console.WriteLine(string.Join(" | ", row));
+
+// Pre-rendered Markdown
+string md = tableObj["markdown"]!.Value<string>()!;
+```
+
+---
+
+## Textline object
+
+A single line of text within a text box. Found in `boxes[].textlines[]`.
+
+<Accordion title="Example">
+
+```json
+{
+  "bbox": [70.69, 295.88, 197.28, 304.63],
+  "spans": [...]
+}
+```
+
+</Accordion>
+
+<ParamField body="bbox" type="number[4]">
+  Bounding box of this text line as `[x0, y0, x1, y1]` in PDF points.
+</ParamField>
+
+<ParamField body="spans" type="array">
+  Array of [span objects](#span-object). A single line is typically split into multiple spans wherever the font, size, or style changes.
+</ParamField>
+
+---
+
+## Span object
+
+The smallest unit of text, sharing a single consistent style. Found in `textlines[].spans[]` and `fulltext[].lines[].spans[]`.
+
+A span break occurs at any change of font, size, weight, colour, or style — so a line reading "Hello World! **This is bold**" produces two separate spans. See [Font Flags Reference](/dotnet/guides/extract-JSON#font-flags-reference) for how to interpret the `flags` field.
+
+<AccordionGroup>
+
+  <Accordion title="Example — regular text">
+
+```json
+{
+  "size": 12,
+  "flags": 0,
+  "bidi": 0,
+  "char_flags": 16,
+  "font": "Arial",
+  "color": 0,
+  "alpha": 255,
+  "ascender": 0.8,
+  "descender": -0.2,
+  "text": "Hello World!",
+  "origin": [70.69, 304.47],
+  "bbox": [70.69, 295.88, 136.09, 304.61],
+  "line": 0,
+  "block": 0,
+  "dir": [1, 0]
+}
+```
+
+  </Accordion>
+
+  <Accordion title="Example — bold text">
+
+```json
+{
+  "size": 12,
+  "flags": 20,
+  "bidi": 0,
+  "char_flags": 24,
+  "font": "MinionPro-Bold",
+  "color": 0,
+  "alpha": 255,
+  "ascender": 0.8,
+  "descender": -0.2,
+  "text": "This is bold",
+  "origin": [138.83, 304.47],
+  "bbox": [138.83, 296.03, 197.28, 304.63],
+  "line": 0,
+  "block": 0,
+  "dir": [1, 0]
+}
+```
+
+  </Accordion>
+
+</AccordionGroup>
+
+<ParamField body="text" type="string">
+  The actual text content of this span.
+</ParamField>
+
+<ParamField body="font" type="string">
+  Full PostScript font name, e.g. `"Arial"`, `"MinionPro-Bold"`, `"Aptos"`. The font name often encodes weight and style — e.g. `-Bold`, `-It`.
+</ParamField>
+
+<ParamField body="size" type="number">
+  Font size in points.
+</ParamField>
+
+<ParamField body="flags" type="number">
+  Bitmask of font style flags from the PDF spec. Common values:
+
+  - `0` — regular
+  - `4` — serifed font (bit 2)
+  - `16` — bold (bit 4)
+  - `20` — bold + serifed (bits 2 and 4)
+
+  See [Font Flags Reference](/dotnet/guides/extract-JSON#font-flags-reference) for the full bitmask table.
+</ParamField>
+
+<ParamField body="char_flags" type="number">
+  Additional character-level flags from the MuPDF structured text API. Refer to the [MuPDF structured-text header](https://github.com/ArtifexSoftware/mupdf/blob/66ef5879c18bc7cc0831fd9b915b257ab717b79e/include/mupdf/fitz/structured-text.h#L489) for the enumeration.
+</ParamField>
+
+<ParamField body="color" type="number">
+  Text colour as a packed RGB integer. `0` is black (`#000000`). Decode with: `r = (color >> 16) & 0xFF`, `g = (color >> 8) & 0xFF`, `b = color & 0xFF`.
+</ParamField>
+
+<ParamField body="alpha" type="number">
+  Opacity of the text from `0` (fully transparent) to `255` (fully opaque).
+</ParamField>
+
+<ParamField body="ascender" type="number">
+  Font ascender as a fraction of the font size. Typically `0.8`, meaning the ascender reaches 80% of the em above the baseline.
+</ParamField>
+
+<ParamField body="descender" type="number">
+  Font descender as a fraction of the font size. Typically `-0.2`, meaning the descender extends 20% of the em below the baseline.
+</ParamField>
+
+<ParamField body="bbox" type="number[4]">
+  Tight bounding box of the rendered glyphs as `[x0, y0, x1, y1]` in PDF points.
+</ParamField>
+
+<ParamField body="origin" type="number[2]">
+  The text origin point `[x, y]` — the position of the baseline at the start of the span, in PDF points.
+</ParamField>
+
+<ParamField body="bidi" type="number">
+  Unicode bidirectional level. `0` for standard left-to-right text.
+</ParamField>
+
+<ParamField body="line" type="number">
+  Index of the line this span belongs to within its parent block.
+</ParamField>
+
+<ParamField body="block" type="number">
+  Index of the block this span belongs to within the page's content stream.
+</ParamField>
+
+<ParamField body="dir" type="number[2]">
+  Text direction as a unit vector `[x, y]`. `[1, 0]` is standard left-to-right horizontal text. `[0, -1]` indicates top-to-bottom vertical text.
+</ParamField>
+
+#### Reading span data in C\#
+
+```csharp
+foreach (JObject span in line["spans"]!)
+{
+    string text  = span["text"]!.Value<string>()!;
+    float  size  = span["size"]!.Value<float>();
+    int    flags = span["flags"]!.Value<int>();
+    string font  = span["font"]!.Value<string>()!;
+
+    bool isBold      = (flags & 16) != 0;
+    bool isSerifed   = (flags & 4)  != 0;
+
+    var bbox = span["bbox"]!.ToObject<float[]>()!;
+    Console.WriteLine($"{text} ({font}, {size}pt, bold:{isBold}) @ [{string.Join(", ", bbox)}]");
+}
+```
+
+---
+
+## Fulltext block
+
+A raw text block from the PDF content stream, independent of visual layout. Found in `pages[].fulltext[]`.
+
+The `fulltext` array captures text in the order it appears in the PDF's internal stream, which may differ from the visual reading order delivered by `boxes`. Each block contains one or more lines, and each line contains spans.
+
+<Accordion title="Example">
+
+```json
+{
+  "type": 0,
+  "number": 0,
+  "flags": 0,
+  "bbox": [70.69, 295.88, 197.28, 304.63],
+  "lines": [
+    {
+      "spans": [...],
+      "wmode": 0,
+      "dir": [1, 0],
+      "bbox": [70.69, 295.88, 197.28, 304.63]
+    }
+  ]
+}
+```
+
+</Accordion>
+
+<ParamField body="type" type="number">
+  Block type from the PDF spec. `0` indicates a text block.
+</ParamField>
+
+<ParamField body="number" type="number">
+  Sequential index of this block within the page's content stream.
+</ParamField>
+
+<ParamField body="flags" type="number">
+  Block-level flags. `0` for standard text blocks.
+</ParamField>
+
+<ParamField body="bbox" type="number[4]">
+  Bounding box of the entire block as `[x0, y0, x1, y1]` in PDF points.
+</ParamField>
+
+<ParamField body="lines" type="array">
+  Array of line objects within this block. Each line contains:
+
+  - `spans` — array of [span objects](#span-object)
+  - `wmode` — writing mode (`0` = horizontal, `1` = vertical)
+  - `dir` — line direction vector, e.g. `[1, 0]` for left-to-right
+  - `bbox` — bounding box of the line as `[x0, y0, x1, y1]`
+</ParamField>
+
+---
+
+## Metadata object
+
+PDF document-level metadata. Found at the root as `metadata`.
+
+<Accordion title="Example">
+
+```json
+{
+  "format": "PDF 1.6",
+  "title": "",
+  "author": "",
+  "subject": "",
+  "keywords": "",
+  "creator": "",
+  "producer": "",
+  "creationDate": "D:20240722172345Z",
+  "modDate": "D:20260318153118Z",
+  "trapped": "",
+  "encryption": null
+}
+```
+
+</Accordion>
+
+<ParamField body="format" type="string">
+  PDF version string, e.g. `"PDF 1.4"` or `"PDF 1.6"`.
+</ParamField>
+
+<ParamField body="title" type="string">
+  Document title as set in the PDF's document properties. Empty string if not set.
+</ParamField>
+
+<ParamField body="author" type="string">
+  Document author. Empty string if not set.
+</ParamField>
+
+<ParamField body="subject" type="string">
+  Document subject. Empty string if not set.
+</ParamField>
+
+<ParamField body="keywords" type="string">
+  Keywords associated with the document. Empty string if not set.
+</ParamField>
+
+<ParamField body="creator" type="string">
+  The application that originally created the document before any PDF conversion, e.g. `"Microsoft Word"`. Empty string if not set.
+</ParamField>
+
+<ParamField body="producer" type="string">
+  The application that produced or last saved the PDF file, e.g. `"macOS Quartz PDFContext"`. Empty string if not set.
+</ParamField>
+
+<ParamField body="creationDate" type="string">
+  Creation timestamp in PDF date format: `D:YYYYMMDDHHmmSSOHH'mm'`. Example: `"D:20240722172345Z"` = 22 July 2024, 17:23:45 UTC.
+</ParamField>
+
+<ParamField body="modDate" type="string">
+  Last modification timestamp in the same PDF date format.
+</ParamField>
+
+<ParamField body="trapped" type="string">
+  PDF trapping status. Rarely set in practice; empty string if not applicable.
+</ParamField>
+
+<ParamField body="encryption" type="string | null">
+  Encryption details if the PDF is encrypted. `null` for unencrypted documents.
+</ParamField>
+
+#### Reading metadata in C\#
+
+```csharp
+JObject root     = JObject.Parse(PdfExtractor.ToJson("document.pdf"));
+JObject meta     = (JObject)root["metadata"]!;
+
+string format    = meta["format"]!.Value<string>()!;
+string title     = meta["title"]!.Value<string>()!;
+string author    = meta["author"]!.Value<string>()!;
+string created   = meta["creationDate"]!.Value<string>()!;
+
+Console.WriteLine($"{title} by {author} ({format}, created {created})");
+```
+
+---
+
+## See also
+
+<CardGroup cols={2}>
+  <Card title="Chunk schema" icon="layer-group" href="/dotnet/reference/chunk-schema">
+    Schema for `pageChunks: true` output from `ToMarkdown()`.
+  </Card>
+  <Card title="Extract JSON guide" icon="brackets-curly" href="/dotnet/guides/extract-JSON">
+    Working walkthrough with filtering and pipeline examples.
+  </Card>
+  <Card title="ToJson()" icon="code" href="/dotnet/api/PdfExtractor#tojson)">
+    Full API reference for ToJson().
+  </Card>
+  <Card title="Tables guide" icon="table" href="/dotnet/guides/tables">
+    Extracting and working with table blocks.
+  </Card>
+</CardGroup>

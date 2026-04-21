@@ -1,0 +1,528 @@
+---
+title: Azure OpenAI
+description: Chunk PDFs with PDF4LLM and feed them into Azure OpenAI embeddings and chat completions — end-to-end patterns for .NET RAG pipelines.
+icon: "microsoft"
+---
+
+<div id="apiIndicatorBadge">
+  <div class="inner dotnet"></div>
+</div>
+
+# Azure OpenAI
+
+This guide shows how to connect PDF4LLM's extraction output to Azure OpenAI — specifically, how to embed extracted text using `text-embedding-3-small` (or equivalent) and how to pass document content to a chat completion endpoint for summarisation, Q&A, and RAG.
+
+The guide assumes you have an active Azure OpenAI resource with at least one deployment for an embedding model and one for a chat model (e.g. `gpt-4o`).
+
+---
+
+## Prerequisites
+
+Install the Azure OpenAI .NET SDK alongside PDF4LLM:
+
+```bash
+dotnet add package PDF4LLM
+dotnet add package Azure.AI.OpenAI
+```
+
+You will need:
+
+| Value | Where to find it |
+|---|---|
+| Azure OpenAI endpoint | Azure Portal → your OpenAI resource → Keys and Endpoint |
+| API key | Azure Portal → your OpenAI resource → Keys and Endpoint |
+| Embedding deployment name | Azure OpenAI Studio → Deployments |
+| Chat model deployment name | Azure OpenAI Studio → Deployments |
+
+---
+
+## Client setup
+
+```csharp
+using Azure;
+using Azure.AI.OpenAI;
+using PDF4LLM;
+
+string endpoint   = Environment.GetEnvironmentVariable("AZURE_OPENAI_ENDPOINT")!;
+string apiKey     = Environment.GetEnvironmentVariable("AZURE_OPENAI_API_KEY")!;
+
+AzureOpenAIClient client = new(new Uri(endpoint), new AzureKeyCredential(apiKey));
+
+string embeddingDeployment = "text-embedding-3-small";
+string chatDeployment      = "gpt-4o";
+```
+
+Store credentials in environment variables or a secrets manager — never hardcode them in source files.
+
+---
+
+## Pattern 1 — Embed a PDF for semantic search
+
+The most common use of PDF4LLM with Azure OpenAI is building a searchable index from document content: extract text, split into chunks, embed each chunk, and store embeddings for later retrieval.
+
+### Step 1 — Extract and chunk
+
+```csharp
+using MuPDF.NET;
+using PDF4LLM;
+
+Document doc      = new Document("technical-spec.pdf");
+string   markdown = PdfExtractor.ToMarkdown(doc);
+doc.Close();
+
+// Split on H2 headings for semantic chunks — adjust to match document structure
+string[] chunks = System.Text.RegularExpressions.Regex.Split(
+    markdown,
+    @"(?=^## )",
+    RegexOptions.Multiline
+);
+
+var cleanChunks = chunks
+    .Select(c => c.Trim())
+    .Where(c => c.Length >= 100) // discard very short fragments
+    .ToList();
+
+Console.WriteLine($"Extracted {cleanChunks.Count} chunks");
+```
+
+### Step 2 — Embed each chunk
+
+```csharp
+var embeddingClient = client.GetEmbeddingClient(embeddingDeployment);
+var embeddings      = new List<(string Text, float[] Embedding)>();
+
+foreach (string chunk in cleanChunks)
+{
+    EmbeddingGenerationOptions options = new() { Dimensions = 1536 };
+    ClientResult<Embedding> result     = await embeddingClient.GenerateEmbeddingAsync(chunk, options);
+
+    float[] vector = result.Value.ToFloats().ToArray();
+    embeddings.Add((chunk, vector));
+}
+
+Console.WriteLine($"Generated {embeddings.Count} embeddings");
+```
+
+<Callout type="info">
+Azure OpenAI rate limits vary by tier. For documents with many chunks, add a small delay between requests or use `GenerateEmbeddingsAsync` with a batch of inputs rather than one call per chunk.
+</Callout>
+
+### Step 3 — Batch embedding for efficiency
+
+The `GenerateEmbeddingsAsync` overload accepts a list of inputs, reducing round-trips:
+
+```csharp
+var embeddingClient = client.GetEmbeddingClient(embeddingDeployment);
+
+// Embed in batches of 16 to stay within token limits per request
+const int batchSize = 16;
+var       allEmbeddings = new List<(string Text, float[] Embedding)>();
+
+for (int i = 0; i < cleanChunks.Count; i += batchSize)
+{
+    var batch  = cleanChunks.Skip(i).Take(batchSize).ToList();
+    var result = await embeddingClient.GenerateEmbeddingsAsync(batch);
+
+    for (int j = 0; j < batch.Count; j++)
+    {
+        float[] vector = result.Value[j].ToFloats().ToArray();
+        allEmbeddings.Add((batch[j], vector));
+    }
+}
+```
+
+---
+
+## Pattern 2 — Retrieval-augmented generation (RAG)
+
+A full RAG pipeline has three stages: **ingest** (embed and store), **retrieve** (find relevant chunks for a query), and **generate** (pass retrieved chunks to the LLM). PDF4LLM handles the extraction step in the ingest stage.
+
+### Ingest
+
+```csharp
+// In-memory store for this example.
+// In production, replace with Azure AI Search, Qdrant, or another vector store.
+var vectorStore = new List<(string Text, float[] Embedding, string Source, int Page)>();
+
+var reader = PdfExtractor.LlamaMarkdownReader();
+var pages  = reader.LoadData("product-manual.pdf");
+
+var embeddingClient = client.GetEmbeddingClient(embeddingDeployment);
+
+foreach (var page in pages)
+{
+    string text      = page.Text.Trim();
+    int    pageNum   = (int)page.ExtraInfo["page"];
+    string filePath  = (string)page.ExtraInfo["file_path"];
+
+    if (text.Length < 50) continue; // skip near-empty pages
+
+    var result = await embeddingClient.GenerateEmbeddingAsync(text);
+    float[] vector = result.Value.ToFloats().ToArray();
+
+    vectorStore.Add((text, vector, filePath, pageNum));
+}
+
+Console.WriteLine($"Indexed {vectorStore.Count} pages");
+```
+
+### Retrieve — cosine similarity search
+
+```csharp
+static float CosineSimilarity(float[] a, float[] b)
+{
+    float dot  = 0f, magA = 0f, magB = 0f;
+    for (int i = 0; i < a.Length; i++)
+    {
+        dot  += a[i] * b[i];
+        magA += a[i] * a[i];
+        magB += b[i] * b[i];
+    }
+    return dot / (MathF.Sqrt(magA) * MathF.Sqrt(magB));
+}
+
+async Task<List<(string Text, string Source, int Page, float Score)>> RetrieveAsync(
+    string query,
+    int    topK = 5)
+{
+    var queryResult   = await embeddingClient.GenerateEmbeddingAsync(query);
+    float[] queryVec  = queryResult.Value.ToFloats().ToArray();
+
+    return vectorStore
+        .Select(entry => (
+            entry.Text,
+            entry.Source,
+            entry.Page,
+            Score: CosineSimilarity(queryVec, entry.Embedding)
+        ))
+        .OrderByDescending(r => r.Score)
+        .Take(topK)
+        .ToList();
+}
+```
+
+### Generate — pass retrieved chunks to gpt-4o
+
+```csharp
+async Task<string> AskAsync(string question)
+{
+    var retrieved = await RetrieveAsync(question, topK: 5);
+
+    // Build a context block from the top results
+    string context = string.Join("\n\n---\n\n",
+        retrieved.Select(r =>
+            $"[Source: {Path.GetFileName(r.Source)}, Page {r.Page + 1}]\n{r.Text}"));
+
+    string systemPrompt =
+        "You are a helpful assistant. Answer questions using only the " +
+        "provided context. If the answer is not in the context, say so. " +
+        "Cite the source and page number for each factual claim.";
+
+    string userPrompt = $"""
+        Context:
+        {context}
+
+        Question: {question}
+        """;
+
+    var chatClient = client.GetChatClient(chatDeployment);
+
+    ClientResult<ChatCompletion> result = await chatClient.CompleteChatAsync(
+    [
+        new SystemChatMessage(systemPrompt),
+        new UserChatMessage(userPrompt)
+    ]);
+
+    return result.Value.Content[0].Text;
+}
+
+// Usage
+string answer = await AskAsync("What is the maximum operating temperature?");
+Console.WriteLine(answer);
+```
+
+---
+
+## Pattern 3 — Summarisation
+
+For summarising a document or a set of pages, pass the extracted Markdown directly to a chat completion without embedding:
+
+```csharp
+Document doc      = new Document("executive-briefing.pdf");
+string   markdown = PdfExtractor.ToMarkdown(doc, pages: new List<int> { 0, 1, 2 });
+doc.Close();
+
+var    chatClient = client.GetChatClient(chatDeployment);
+string prompt     = $"""
+    Summarise the following document in three to five bullet points.
+    Focus on key decisions, numbers, and action items.
+    Do not include information not present in the document.
+
+    Document:
+    {markdown}
+    """;
+
+ClientResult<ChatCompletion> result = await chatClient.CompleteChatAsync(
+[
+    new SystemChatMessage("You are a precise document summariser."),
+    new UserChatMessage(prompt)
+]);
+
+Console.WriteLine(result.Value.Content[0].Text);
+```
+
+For long documents that exceed the model's context window, summarise page-by-page and then summarise the summaries:
+
+```csharp
+Document doc        = new Document("annual-report.pdf");
+var      chatClient = client.GetChatClient(chatDeployment);
+var      pageSummaries = new List<string>();
+
+for (int i = 0; i < doc.PageCount; i++)
+{
+    string pageText = PdfExtractor.ToMarkdown(doc, pages: new List<int> { i });
+    if (pageText.Trim().Length < 100) continue;
+
+    var result = await chatClient.CompleteChatAsync(
+    [
+        new SystemChatMessage("Summarise the following page in two sentences."),
+        new UserChatMessage(pageText)
+    ]);
+
+    pageSummaries.Add($"Page {i + 1}: {result.Value.Content[0].Text.Trim()}");
+}
+
+doc.Close();
+
+// Final roll-up summary
+string rollup = string.Join("\n", pageSummaries);
+
+var finalResult = await chatClient.CompleteChatAsync(
+[
+    new SystemChatMessage("Produce a five-sentence executive summary from the page summaries below."),
+    new UserChatMessage(rollup)
+]);
+
+Console.WriteLine(finalResult.Value.Content[0].Text);
+```
+
+---
+
+## Pattern 4 — Multimodal: PDF pages with images
+
+For documents where images carry meaningful information — technical diagrams, charts, infographics — embed images alongside text using `gpt-4o`'s vision capability:
+
+```csharp
+Document doc      = new Document("system-diagram.pdf");
+string   markdown = PdfExtractor.ToMarkdown(
+    doc,
+    embedImages: true,   // inline images as Base64 data URIs
+    pages: new List<int> { 0 }
+);
+doc.Close();
+
+// The markdown string contains both text and embedded images.
+// gpt-4o accepts markdown with inline data URIs as message content.
+var chatClient = client.GetChatClient(chatDeployment);
+
+ClientResult<ChatCompletion> result = await chatClient.CompleteChatAsync(
+[
+    new SystemChatMessage(
+        "You are a technical document analyst. " +
+        "Describe both the text content and any diagrams or charts present."),
+    new UserChatMessage(markdown)
+]);
+
+Console.WriteLine(result.Value.Content[0].Text);
+```
+
+<Callout type="info">
+Not all Azure OpenAI deployments support vision input. Confirm that your `gpt-4o` deployment has the vision capability enabled in Azure OpenAI Studio before using this pattern.
+</Callout>
+
+---
+
+## Pattern 5 — Form data extraction and LLM enrichment
+
+Combine structured form field extraction with an LLM call to normalise, validate, or enrich the extracted values:
+
+```csharp
+Document doc    = new Document("insurance-claim.pdf");
+var      fields = PdfExtractor.GetKeyValues(doc);
+doc.Close();
+
+var formData = fields.ToDictionary(f => f.Name, f => f.Value);
+
+string formJson = System.Text.Json.JsonSerializer.Serialize(
+    formData,
+    new System.Text.Json.JsonSerializerOptions { WriteIndented = true }
+);
+
+var    chatClient = client.GetChatClient(chatDeployment);
+string prompt     = $"""
+    The following JSON represents form fields extracted from an insurance claim PDF.
+    Respond with a JSON object containing:
+    - "valid": true/false — whether all required fields are present and plausible
+    - "missing_fields": array of field names that are empty or absent
+    - "anomalies": array of strings describing any values that look incorrect or unusual
+    - "summary": a one-sentence plain-English description of the claim
+
+    Respond with JSON only. No explanation or markdown fences.
+
+    Form data:
+    {formJson}
+    """;
+
+ClientResult<ChatCompletion> result = await chatClient.CompleteChatAsync(
+[
+    new SystemChatMessage("You are a document validation assistant. Respond only with JSON."),
+    new UserChatMessage(prompt)
+]);
+
+string analysisJson = result.Value.Content[0].Text;
+Console.WriteLine(analysisJson);
+```
+
+---
+
+## Token budgeting
+
+Every pattern above passes text to an Azure OpenAI endpoint that has a token limit per request. Keep these constraints in mind:
+
+| Model | Context window | Practical limit for RAG context |
+|---|---|---|
+| gpt-4o | 128 000 tokens | ~100 000 tokens (leave room for system prompt + response) |
+| gpt-4o-mini | 128 000 tokens | ~100 000 tokens |
+| text-embedding-3-small | 8 191 tokens | Chunk to ≤ 512 tokens for best embedding quality |
+| text-embedding-ada-002 | 8 191 tokens | Chunk to ≤ 512 tokens |
+
+A token is approximately 4 characters for English text. A typical A4 page of dense text is 400–600 tokens.
+
+To stay safely within limits, estimate chunk token counts before sending:
+
+```csharp
+// Rough estimate — replace with SharpToken for accuracy
+static int EstimateTokens(string text) => text.Length / 4;
+
+var safeChunks = cleanChunks
+    .Where(c => EstimateTokens(c) <= 512)
+    .ToList();
+
+// For chunks over the limit, split further
+var oversized = cleanChunks.Where(c => EstimateTokens(c) > 512).ToList();
+// ... apply token-based splitting from the Page Selection & Chunking guide
+```
+
+---
+
+## Error handling
+
+Azure OpenAI requests can fail due to rate limits, transient network errors, or content filtering. Wrap requests in retry logic:
+
+```csharp
+using System.Net;
+
+static async Task<T> RetryAsync<T>(
+    Func<Task<T>> operation,
+    int           maxRetries = 3,
+    int           delayMs    = 1000)
+{
+    for (int attempt = 0; attempt < maxRetries; attempt++)
+    {
+        try
+        {
+            return await operation();
+        }
+        catch (RequestFailedException ex)
+            when (ex.Status == (int)HttpStatusCode.TooManyRequests ||
+                  ex.Status == (int)HttpStatusCode.ServiceUnavailable)
+        {
+            if (attempt == maxRetries - 1) throw;
+
+            int backoff = delayMs * (int)Math.Pow(2, attempt); // exponential backoff
+            Console.WriteLine($"Rate limited — retrying in {backoff}ms (attempt {attempt + 1})");
+            await Task.Delay(backoff);
+        }
+    }
+
+    throw new InvalidOperationException("Unreachable");
+}
+
+// Usage
+var result = await RetryAsync(() =>
+    embeddingClient.GenerateEmbeddingAsync(chunk));
+```
+
+---
+
+## Using Azure Managed Identity
+
+For production deployments, prefer Managed Identity over API keys to avoid storing credentials:
+
+```csharp
+using Azure.Identity;
+
+// Works in Azure App Service, Azure Functions, AKS, and other managed environments
+AzureOpenAIClient client = new(
+    new Uri(Environment.GetEnvironmentVariable("AZURE_OPENAI_ENDPOINT")!),
+    new DefaultAzureCredential()
+);
+```
+
+Assign the `Cognitive Services OpenAI User` role to the managed identity in the Azure Portal, or via the Azure CLI:
+
+```bash
+az role assignment create \
+  --role "Cognitive Services OpenAI User" \
+  --assignee <managed-identity-object-id> \
+  --scope /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.CognitiveServices/accounts/<resource-name>
+```
+
+---
+
+## Troubleshooting
+
+**`RequestFailedException` with status 401**
+The API key is incorrect, expired, or the endpoint URL does not match the key's resource. Verify both in the Azure Portal under Keys and Endpoint.
+
+**`RequestFailedException` with status 429 (Too Many Requests)**
+You have exceeded the tokens-per-minute or requests-per-minute quota for your deployment. Apply the retry-with-backoff pattern above, reduce batch sizes, or request a quota increase in Azure OpenAI Studio.
+
+**`RequestFailedException` with status 400 on embedding calls**
+The input text exceeds the embedding model's token limit (8 191 tokens). Reduce chunk sizes — the text being embedded is too long for a single embedding call.
+
+**Content filter triggered (status 400 with a content filter error code)**
+Azure OpenAI applies content filtering by default. If document content triggers the filter, the request fails with a content filter error rather than a rate limit error. Check `ex.ErrorCode` to distinguish. For legitimate documents triggering false positives, content filter configuration can be adjusted in Azure OpenAI Studio under Content Filters.
+
+**Empty or low-quality embedding results**
+Very short chunks (fewer than ~20 tokens) and very long chunks (over 512 tokens) both produce lower-quality embeddings. The short-chunk problem is common for page separators and headers extracted as standalone chunks — filter them with a minimum length check. The long-chunk problem requires splitting before embedding.
+
+**Managed Identity auth fails locally**
+`DefaultAzureCredential` works in managed environments but requires `az login` locally. Run `az login` in your terminal, or switch to `AzureCliCredential` explicitly for local development:
+
+```csharp
+#if DEBUG
+    AzureOpenAIClient client = new(new Uri(endpoint), new AzureCliCredential());
+#else
+    AzureOpenAIClient client = new(new Uri(endpoint), new DefaultAzureCredential());
+#endif
+```
+
+---
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="PdfExtractor" icon="code" href="/dotnet/api/PdfExtractor">
+    Complete method signatures and parameters.
+  </Card>
+  <Card title="Extract JSON" icon="brackets-curly" href="/dotnet/guides/extract-JSON">
+    Access bounding boxes and layout data for custom pipelines.
+  </Card>
+  <Card title="Image Extraction" icon="image" href="/dotnet/guides/images-and-graphics">
+    Extracting images for multimodal model input.
+  </Card>
+  <Card title="OCR" icon="eye" href="/dotnet/guides/OCR">
+    Control OCR behaviour and language configuration.
+  </Card>
+</CardGroup>

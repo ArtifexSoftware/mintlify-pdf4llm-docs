@@ -1,0 +1,201 @@
+---
+title: Images & Graphics
+description: Extract embedded images and vector graphics from documents — controlling output path, format, and whether images are written to disk or embedded inline.
+icon: "image"
+---
+
+<div id="apiIndicatorBadge">
+  <div class="inner dotnet"></div>
+</div>
+
+## Overview
+
+PDF4LLM can extract images and graphics from documents in two ways: writing them as files to disk, or embedding them as Base64-encoded data URIs directly in the Markdown output. When images are written to disk, their paths are referenced inline using standard Markdown image syntax.
+
+Image extraction is disabled by default. To enable it, pass `writeImages: true` to `ToMarkdown()`.
+
+```csharp
+using PDF4LLM;
+
+string mdText = PdfExtractor.ToMarkdown("document.pdf", writeImages: true);
+```
+
+---
+
+## Writing images to disk
+
+When `writeImages: true` is set, each image found in the document is saved as an individual file. The path to each image is embedded in the Markdown output:
+
+```markdown
+![image](assets/images/document.pdf-0-1.png)
+```
+
+By default, images are written to the process working directory. Use `imagePath` to specify a different output directory:
+
+```csharp
+string mdText = PdfExtractor.ToMarkdown(
+    "document.pdf",
+    writeImages: true,
+    imagePath:   "assets/images/"
+);
+```
+
+<Note>
+  Unlike the Python library, PDF4LLM for .NET does **not** create the output directory automatically. Create it before calling `ToMarkdown()` or you will get a `DirectoryNotFoundException`:
+
+  ```csharp
+  Directory.CreateDirectory("assets/images/");
+  ```
+</Note>
+
+---
+
+## Image format
+
+Use the `imageFormat` parameter to control the file format of extracted images. Pass the format as a lowercase file extension string:
+
+```csharp
+string mdText = PdfExtractor.ToMarkdown(
+    "document.pdf",
+    writeImages:  true,
+    imagePath:    "assets/images/",
+    imageFormat:  "jpg"
+);
+```
+
+| Format | Best for | Notes |
+|---|---|---|
+| `"png"` | Diagrams, screenshots, charts | Lossless. Larger file size. Default. |
+| `"jpg"` | Photographs, scanned pages | Lossy. Smaller file size. |
+| `"webp"` | Web delivery | Good compression, broad browser support. |
+| `"tiff"` | Archival, OCR pre-processing | Lossless. Large file size. |
+| `"bmp"` | Maximum compatibility | Uncompressed. Very large file size. |
+| `"pnm"` | OCR pre-processing pipelines | Portable bitmap format. |
+
+<Tip>
+  Use `"png"` when image fidelity matters — for example, when extracting charts, diagrams, or figures that contain readable text. Use `"jpg"` for photographic content where file size is a concern.
+</Tip>
+
+---
+
+## Embedded vs. file images
+
+### File images (write to disk)
+
+When using `ToMarkdown()` with `writeImages: true`, images are saved to disk and referenced by path in the Markdown output:
+
+```csharp
+string mdText = PdfExtractor.ToMarkdown(
+    "document.pdf",
+    writeImages:  true,
+    imagePath:    "assets/",
+    imageFormat:  "png"
+);
+```
+
+The Markdown output will contain image references like:
+
+```markdown
+Some preceding text.
+
+![image](assets/document.pdf-0-1.png)
+
+Some following text.
+```
+
+### Embedded images (inline Base64)
+
+Set `embedImages: true` to encode images as Base64 data URIs and embed them directly in the Markdown — no files are written to disk:
+
+```csharp
+string mdText = PdfExtractor.ToMarkdown("document.pdf", embedImages: true);
+```
+
+The Markdown output will contain inline data URIs:
+
+```markdown
+Some preceding text.
+
+![image](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...)
+
+Some following text.
+```
+
+This produces a fully self-contained output string with no external file dependencies — useful when passing Markdown directly to an LLM or storing it in a vector store.
+
+<Note>
+  `writeImages` and `embedImages` are mutually exclusive. If both are set to `true`, `embedImages` takes precedence and no files are written to disk.
+</Note>
+
+---
+
+## Vector graphics
+
+PDF4LLM detects vector drawings — lines, shapes, and filled regions — and includes their bounding boxes in the layout analysis. Vector graphic regions are represented as `"image"` type blocks in `ToJson()` output, giving you their position on the page so you can identify and handle them in your pipeline.
+
+---
+
+## Image file naming
+
+Extracted image files are named automatically using the pattern:
+
+```
+{imagePath}/{sourceFilename}-{pageNumber}-{imageIndex}.{imageFormat}
+```
+
+For example, the second image on page 3 of `document.pdf`, saved as PNG to `assets/images/`:
+
+```
+assets/images/document.pdf-2-2.png
+```
+
+Page numbers are zero-based. Image indices are one-based and reset on each new page.
+
+---
+
+## Full example
+
+```csharp
+using System.IO;
+using PDF4LLM;
+
+string imagePath = "output/images/";
+Directory.CreateDirectory(imagePath);
+
+// Extract Markdown with images saved to disk
+string mdText = PdfExtractor.ToMarkdown(
+    "report.pdf",
+    writeImages:  true,
+    imagePath:    imagePath,
+    imageFormat:  "png"
+);
+
+// Save the Markdown file
+File.WriteAllText("output/report.md", mdText, System.Text.Encoding.UTF8);
+
+Console.WriteLine("Done.");
+Console.WriteLine($"Images saved to: {imagePath}");
+Console.WriteLine("Markdown saved to: output/report.md");
+```
+
+---
+
+<Note>
+  For the full API signature, see the [ToMarkdown() API reference](/dotnet/api/PdfExtractor#tomarkdown).
+</Note>
+
+---
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Extract Markdown" icon="markdown" href="/dotnet/guides/extract-Markdown">
+    Full walkthrough of ToMarkdown() with all common options.
+  </Card>
+  <Card title="Extract JSON" icon="brackets-curly" href="/dotnet/guides/extract-JSON">
+    Access image bounding boxes via the JSON output.
+  </Card>
+  <Card title="Tables" icon="table" href="/dotnet/guides/tables">
+    Table extraction explained.
+  </Card>
+</CardGroup>

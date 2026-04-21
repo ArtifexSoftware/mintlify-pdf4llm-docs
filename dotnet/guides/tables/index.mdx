@@ -1,0 +1,241 @@
+---
+title: Tables
+description: How PDF4LLM detects, extracts, and renders tables as Markdown — and how to access raw table data for custom pipelines.
+icon: "table"
+---
+
+<div id="apiIndicatorBadge">
+  <div class="inner dotnet"></div>
+</div>
+
+## Overview
+
+PDF4LLM includes automatic table detection. When a table is found on a page, it is extracted and rendered as a GitHub-flavoured Markdown table in `ToMarkdown()` output, or returned as a structured `"table"` block in `ToJson()` output.
+
+Table extraction is enabled by default — no configuration required.
+
+```csharp
+using PDF4LLM;
+
+string mdText = PdfExtractor.ToMarkdown("document.pdf");
+Console.WriteLine(mdText);
+```
+
+A detected table will appear in the Markdown output like this:
+
+```markdown
+| A | B | C | D |
+|---|---|---|---|
+| 0 | 1 | 2 | 3 |
+| 0 | 1 | 2 | 3 |
+```
+
+---
+
+## How table detection works
+
+PDF4LLM detects tables by analysing the visual structure of the page — looking for ruled lines, column alignment, and consistent row spacing. It does not rely on tagged PDF structure, so it works on both tagged and untagged PDFs.
+
+Detection handles:
+
+- Tables with explicit borders (ruled lines on all sides)
+- Tables with partial borders (header rule only, or row dividers only)
+- Borderless tables detected through column alignment and whitespace
+- Multi-line cell content
+- Merged header cells
+
+<Note>
+  Tables that span multiple pages may not be detected perfectly in all cases. If a table is not rendering as expected, see [Troubleshooting](#troubleshooting) below.
+</Note>
+
+---
+
+## Accessing raw table data
+
+When using `ToJson()`, detected tables are returned as `"table"` blocks with full cell-level data:
+
+```csharp
+using Newtonsoft.Json.Linq;
+using PDF4LLM;
+
+string json  = PdfExtractor.ToJson("document.pdf");
+JArray pages = JArray.Parse(json);
+
+foreach (JObject page in pages)
+{
+    int pageNum = page["page"]!.Value<int>();
+    Console.WriteLine($"\nPage {pageNum}");
+
+    foreach (JObject block in page["blocks"]!)
+    {
+        if (block["type"]!.Value<string>() != "table") continue;
+
+        var rows = block["content"]!.ToObject<List<List<string>>>()!;
+        Console.WriteLine($"Table: {rows.Count} rows × {rows[0].Count} columns");
+
+        foreach (var row in rows)
+            Console.WriteLine(string.Join(" | ", row));
+    }
+}
+```
+
+### Table block structure
+
+Each `"table"` block in the JSON output has the following shape:
+
+```json
+{
+  "type": "table",
+  "bbox": [72.0, 200.0, 523.0, 420.0],
+  "content": [
+    ["A",  "B",  "C",  "D" ],
+    ["A1", "B1", "C1", "D1"],
+    ["A2", "B2", "C2", "D2"]
+  ]
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `type` | `string` | Always `"table"` for table blocks. |
+| `bbox` | `[x0, y0, x1, y1]` | Bounding box of the entire table in PDF coordinates. |
+| `content` | `string[][]` | Two-dimensional array of cell text. Rows first, columns within each row. |
+
+The first row in `content` is typically the header row, but is not explicitly flagged as such — treat `content[0]` as the header for tables that clearly have column labels, and validate against a sample of your documents.
+
+---
+
+## Extracting tables to CSV
+
+Use the `content` array from `ToJson()` to export table data directly to CSV:
+
+```csharp
+using System.IO;
+using System.Linq;
+using Newtonsoft.Json.Linq;
+using PDF4LLM;
+
+string json    = PdfExtractor.ToJson("document.pdf");
+JArray pages   = JArray.Parse(json);
+var    csvLines = new List<string>();
+
+foreach (JObject page in pages)
+{
+    foreach (JObject block in page["blocks"]!)
+    {
+        if (block["type"]!.Value<string>() != "table") continue;
+
+        var rows = block["content"]!.ToObject<List<List<string>>>()!;
+
+        foreach (var row in rows)
+        {
+            // Quote cells that contain commas or quotes
+            var escaped = row.Select(cell =>
+                cell.Contains(',') || cell.Contains('"')
+                    ? $"\"{cell.Replace("\"", "\"\"")}\""
+                    : cell
+            );
+            csvLines.Add(string.Join(",", escaped));
+        }
+
+        csvLines.Add(""); // blank line between tables
+    }
+}
+
+File.WriteAllLines("tables.csv", csvLines, System.Text.Encoding.UTF8);
+```
+
+---
+
+## Multi-page tables
+
+Tables that span across page boundaries are not automatically merged. Each page's fragment is returned as a separate table block. To stitch them together, match on column count and append rows manually, skipping the header row on continuation pages:
+
+```csharp
+using Newtonsoft.Json.Linq;
+using PDF4LLM;
+
+string json    = PdfExtractor.ToJson("report.pdf");
+JArray pages   = JArray.Parse(json);
+
+var mergedRows    = new List<List<string>>();
+int? prevColCount = null;
+
+foreach (JObject page in pages)
+{
+    foreach (JObject block in page["blocks"]!)
+    {
+        if (block["type"]!.Value<string>() != "table") continue;
+
+        var rows     = block["content"]!.ToObject<List<List<string>>>()!;
+        int colCount = rows[0].Count;
+
+        if (colCount == prevColCount)
+        {
+            // Continuation page — skip the header row
+            mergedRows.AddRange(rows.Skip(1));
+        }
+        else
+        {
+            // New table or first page — include the header
+            mergedRows.AddRange(rows);
+        }
+
+        prevColCount = colCount;
+    }
+}
+
+Console.WriteLine($"Merged table: {mergedRows.Count} rows");
+```
+
+---
+
+## Troubleshooting
+
+### Table not detected
+
+If a table is being returned as plain text rather than a `"table"` block, use `ToJson()` to inspect the raw layout on that page and confirm how the blocks are classified:
+
+```csharp
+string json = PdfExtractor.ToJson(
+    "document.pdf",
+    pages: new List<int> { suspectPageIndex }
+);
+// Open the JSON and look for the table content.
+// If it appears as multiple "type": "text" blocks rather than a
+// single "type": "table" block, the layout engine did not detect
+// a tabular structure.
+```
+
+Common causes:
+
+- The table is borderless with inconsistent column spacing — the layout engine could not find a reliable grid
+- The table is an image (scanned) — enable OCR and check whether cells are being recognised
+- The table has only one column, or is very narrow, and was classified as a text block
+
+### Incorrect column splitting
+
+If columns are being merged or split incorrectly, the table may have irregular spacing or proportional fonts that disrupt alignment detection. Accessing the raw `content` array via `ToJson()` and post-processing it manually often gives better results than relying on the Markdown rendering for these cases.
+
+### Merged cells
+
+Tables with horizontally or vertically merged cells (a single cell spanning multiple columns or rows) are not fully represented in the `content` array — the merged cell's text is preserved but the span relationship is flattened. Use `ParseDocument()` if you need to inspect cell structure at a lower level, or handle the span reconstruction in your own post-processing step.
+
+---
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="OCR" icon="eye" href="/dotnet/guides/OCR">
+    Enable OCR for scanned tables that contain no selectable text.
+  </Card>
+  <Card title="Extract JSON" icon="brackets-curly" href="/dotnet/guides/extract-JSON">
+    Full guide to working with the JSON output format.
+  </Card>
+  <Card title="Extract Markdown" icon="markdown" href="/dotnet/guides/extract-Markdown">
+    Markdown extraction with all common options.
+  </Card>
+  <Card title="JSON Schema" icon="file-code" href="/dotnet/reference/JSON-schema">
+    Complete field reference for the JSON output structure.
+  </Card>
+</CardGroup>

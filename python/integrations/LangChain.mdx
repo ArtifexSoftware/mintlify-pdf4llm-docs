@@ -3,6 +3,10 @@ title: LangChain
 description: Use PyMuPDF4LLM as a LangChain document loader to feed PDF content into chains, agents, and retrieval pipelines.
 ---
 
+<div id="apiIndicatorBadge">
+  <div class="inner pymupdf"></div>
+</div>
+
 ## Overview
 
 PyMuPDF4LLM integrates with LangChain through a custom document loader that wraps `to_markdown()` and returns LangChain `Document` objects. Each document carries the page's Markdown content in its `page_content` field and PyMuPDF4LLM's page metadata in its `metadata` field.
