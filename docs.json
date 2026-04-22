@@ -8,6 +8,11 @@
     "light": "#ff4e01",
     "dark": "#ff4e01"
   },
+  "integrations": {
+    "ga4": {
+        "measurementId": "G-FJJWDFCD9X"
+    }
+ },
  "contextual": {
     "options": [
         "copy",
