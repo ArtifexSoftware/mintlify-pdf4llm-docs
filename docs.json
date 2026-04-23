@@ -74,7 +74,8 @@
             "pages": [
               "python/getting-started/installation/index",
               "python/getting-started/quickstart/index",
-              "python/getting-started/supported-formats/index"
+              "python/getting-started/supported-formats/index",
+              "python/getting-started/faq/index"
             ]
           },
           {
@@ -105,7 +106,8 @@
               "python/api/index",
               "python/reference/chunk-schema",
               "python/reference/JSON-schema",
-              "python/reference/changelog"
+              "python/reference/changelog",
+              "core-docs"
             ]
           }
         ]
@@ -118,7 +120,8 @@
             "pages": [
               "dotnet/getting-started/installation/index",
               "dotnet/getting-started/quickstart/index",
-              "dotnet/getting-started/supported-formats/index"
+              "dotnet/getting-started/supported-formats/index",
+              "dotnet/getting-started/faq/index"
             ]
           },
           {
@@ -146,7 +149,9 @@
             "pages": [
               "dotnet/api/index",
               "dotnet/reference/chunk-schema",
-              "dotnet/reference/JSON-schema"
+              "dotnet/reference/JSON-schema",
+              "dotnet/reference/changelog",
+              "core-docs"
             ]
           }
         ]

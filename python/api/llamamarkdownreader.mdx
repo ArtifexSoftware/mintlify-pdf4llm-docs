@@ -28,14 +28,9 @@ Inherits from `llama_index.core.readers.base.BaseReader`.
 ```python
 from pymupdf4llm import LlamaMarkdownReader
 
-pymupdf4llm.use_layout(False)
 reader = LlamaMarkdownReader()
 documents = reader.load_data("document.pdf")
 ```
-
-<Tip>
-Note: it is required to set `use_layout=False` globally when using `LlamaMarkdownReader`.
-</Tip>
 
 ---
 
@@ -96,7 +91,6 @@ Example metadata:
 ```python
 from pymupdf4llm import LlamaMarkdownReader
 
-pymupdf4llm.use_layout(False)
 reader = LlamaMarkdownReader()
 documents = reader.load_data("report.pdf")
 
@@ -127,7 +121,6 @@ print(documents[0].metadata["department"])  # "finance"
 from pymupdf4llm import LlamaMarkdownReader
 from llama_index.core import VectorStoreIndex
 
-pymupdf4llm.use_layout(False)
 reader = LlamaMarkdownReader()
 documents = reader.load_data("document.pdf")
 index = VectorStoreIndex.from_documents(documents)
@@ -143,7 +136,6 @@ from llama_index.core.ingestion import IngestionPipeline
 from llama_index.core.node_parser import MarkdownNodeParser
 from llama_index.core import VectorStoreIndex
 
-pymupdf4llm.use_layout(False)
 reader = LlamaMarkdownReader()
 documents = reader.load_data("document.pdf")
 

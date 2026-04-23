@@ -1,0 +1,364 @@
+---
+title: FAQ
+description: Common questions about the `PDF4LLM` package for .NET.
+icon: "circle-question"
+---
+
+<div id="apiIndicatorBadge">
+  <div class="inner dotnet"></div>
+</div>
+
+
+## How do I install PDF4LLM for .NET?
+
+Install via the .NET CLI:
+
+```bash
+dotnet add package PDF4LLM
+```
+
+Or via the Visual Studio Package Manager Console:
+
+```powershell
+Install-Package PDF4LLM
+```
+
+Or by adding a `PackageReference` directly to your `.csproj`:
+
+```xml
+<PackageReference Include="PDF4LLM" Version="*" />
+```
+
+`MuPDF.NET` is installed automatically as a dependency — you do not need to add it separately.
+
+## Which .NET targets are supported?
+
+PDF4LLM targets .NET Standard 2.0, making it compatible with any framework that implements that standard:
+
+| Target framework | Supported |
+|---|---|
+| .NET 8.0 | ✓ |
+| .NET 7.0 | ✓ |
+| .NET 6.0 | ✓ |
+| .NET 5.0 | ✓ |
+| .NET Standard 2.0 | ✓ |
+| .NET Framework 4.8 | ✓ |
+| .NET Framework 4.7.2 | ✓ |
+| .NET Framework 4.6.1 | ✓ |
+
+## How do I verify my installation?
+
+Add a `using` directive and call `ToMarkdown` on any PDF:
+
+```csharp
+using MuPDF.NET;
+using PDF4LLM;
+
+string markdown = PdfExtractor.ToMarkdown("document.pdf");
+Console.WriteLine(markdown);
+```
+
+If this prints Markdown to the console, everything is wired up correctly.
+
+## I'm seeing an "assembly with the same simple name" conflict. How do I fix it?
+
+Your installed version of `MuPDF.NET` already bundles PDF4LLM internally. Having both packages referenced simultaneously causes the conflict.
+
+Remove the explicit `PDF4LLM` package reference and rely on the bundled version:
+
+```bash
+dotnet remove package PDF4LLM
+```
+
+Or remove the line from your `.csproj` manually:
+
+```xml
+<!-- Remove this line -->
+<PackageReference Include="PDF4LLM" Version="*" />
+```
+
+The API is identical either way — `using PDF4LLM;` and `PdfExtractor.*` work regardless of which package supplies the assembly.
+
+> A future release of MuPDF.NET will stop bundling PDF4LLM, allowing both packages to coexist without conflict.
+
+## How do I convert a PDF to Markdown?
+
+Open a `Document` and pass it to `PdfExtractor.ToMarkdown()`:
+
+```csharp
+using MuPDF.NET;
+using PDF4LLM;
+
+Document doc      = new Document("my-document.pdf");
+string   markdown = PdfExtractor.ToMarkdown(doc);
+doc.Close();
+
+Console.WriteLine(markdown);
+```
+
+To save the result to a file:
+
+```csharp
+File.WriteAllText("output.md", markdown, System.Text.Encoding.UTF8);
+```
+
+## What output formats are supported?
+
+There are three extraction methods on `PdfExtractor`, all sharing a consistent interface:
+
+| Method | Returns | Best for |
+|---|---|---|
+| `ToMarkdown()` | `string` | LLM ingestion and RAG pipelines |
+| `ToJson()` | `string` (JSON) | Custom pipelines needing bounding boxes and layout metadata |
+| `ToText()` | `string` | Search indexing and NLP preprocessing |
+
+```csharp
+string markdown = PdfExtractor.ToMarkdown(doc);
+string json     = PdfExtractor.ToJson(doc);
+string text     = PdfExtractor.ToText(doc);
+```
+
+## How do I extract only specific pages?
+
+Pass a zero-based list of page indices to the `pages` parameter. This works across all three extraction methods:
+
+```csharp
+string markdown = PdfExtractor.ToMarkdown(
+    doc,
+    pages: new List<int> { 0, 1, 2 }
+);
+```
+
+Page numbers are zero-indexed — page 1 of the document is `0`, page 2 is `1`, and so on.
+
+## What document formats are supported as input?
+
+Standard formats — PDF, XPS, EPUB, MOBI, and more — are supported out of the box.
+
+See the [Supported Formats guide](/dotnet/getting-started/supported-formats) for a full list of supported input and output formats.
+
+## How do I analyse visual layout regions (columns, figures, sidebars)?
+
+Use `PdfExtractor.ParseDocument()`. It analyses the document and returns a typed `ParsedDocument` object containing a list of `ParsedPage` objects, each with its detected blocks, tables, images, and bounding boxes in reading order.
+
+```csharp
+ParsedDocument parsed = PdfExtractor.ParseDocument(doc);
+
+foreach (var page in parsed.Pages)
+{
+    Console.WriteLine($"Page {page.Number}: {page.Blocks.Count} blocks");
+}
+```
+
+## How do I extract AcroForm field values from a filled PDF?
+
+Use `PdfExtractor.GetKeyValues()`. It returns a `List<FormField>`, each with `Name`, `Value`, and `Page` properties:
+
+```csharp
+List<FormField> fields = PdfExtractor.GetKeyValues(doc);
+
+foreach (var field in fields)
+{
+    Console.WriteLine($"{field.Name} (page {field.Page}): {field.Value}");
+}
+```
+
+> Note: `GetKeyValues()` does not accept a `pages` parameter — it always processes the full document.
+
+## Does it handle scanned or image-based PDFs?
+
+Yes, via Tesseract OCR. Unlike the Python library, OCR is **not** triggered automatically — you must opt in with `useOcr: true`:
+
+```csharp
+string markdown = PdfExtractor.ToMarkdown(doc, useOcr: true);
+```
+
+The same flag works across all three extraction methods:
+
+```csharp
+string text           = PdfExtractor.ToText(doc, useOcr: true);
+ParsedDocument parsed = PdfExtractor.ParseDocument(doc, useOcr: true);
+```
+
+OCR output goes through the same layout analysis as native text, so reading order, heading detection, and table detection all apply.
+
+## How do I install Tesseract for OCR?
+
+Tesseract must be installed on the host system and available on the `PATH`. PDF4LLM does not bundle it.
+
+**Windows** — Download the installer from [UB Mannheim Tesseract builds](https://github.com/UB-Mannheim/tesseract/wiki) and add the install directory (e.g. `C:\Program Files\Tesseract-OCR`) to your `PATH`.
+
+**macOS**
+
+```bash
+brew install tesseract
+```
+
+**Linux (Debian / Ubuntu)**
+
+```bash
+sudo apt-get install tesseract-ocr
+```
+
+Verify Tesseract is reachable from the application's environment:
+
+```bash
+tesseract --version
+```
+
+If Tesseract is installed but not on the `PATH`, you will get a `TesseractNotFoundException` at runtime.
+
+## How do I use OCR with a non-English language?
+
+Pass a Tesseract language code to `ocrLanguage`. The default is `"eng"`. Combine multiple languages with a `+`:
+
+```csharp
+// Single language
+string markdown = PdfExtractor.ToMarkdown(doc, useOcr: true, ocrLanguage: "fra");
+
+// Multiple languages mixed on the same pages
+string markdown = PdfExtractor.ToMarkdown(doc, useOcr: true, ocrLanguage: "eng+deu");
+```
+
+The corresponding Tesseract language packs must be installed on your system first. On Debian/Ubuntu:
+
+```bash
+sudo apt-get install tesseract-ocr-fra tesseract-ocr-deu
+```
+
+Common language codes: `eng` (English), `fra` (French), `deu` (German), `spa` (Spanish), `jpn` (Japanese), `chi_sim` (Simplified Chinese), `chi_tra` (Traditional Chinese).
+
+## How do I handle documents that mix scanned and native text pages?
+
+Use a per-page native probe to identify which pages need OCR, then extract each set separately:
+
+```csharp
+var scannedPages = new List<int>();
+
+for (int i = 0; i < doc.PageCount; i++)
+{
+    string native = PdfExtractor.ToText(doc, pages: new List<int> { i });
+    if (native.Trim().Length < 50)
+        scannedPages.Add(i);
+}
+
+string ocrMarkdown    = scannedPages.Count > 0
+    ? PdfExtractor.ToMarkdown(doc, pages: scannedPages, useOcr: true)
+    : string.Empty;
+
+var nativePages       = Enumerable.Range(0, doc.PageCount).Except(scannedPages).ToList();
+string nativeMarkdown = nativePages.Count > 0
+    ? PdfExtractor.ToMarkdown(doc, pages: nativePages)
+    : string.Empty;
+```
+
+Adjust the character threshold (`< 50`) to suit your documents — pages with only a page number or short heading will score low.
+
+## How do I run OCR in a Docker container?
+
+Add Tesseract to your `Dockerfile`:
+
+```dockerfile
+FROM mcr.microsoft.com/dotnet/runtime:8.0
+
+RUN apt-get update && apt-get install -y \
+    tesseract-ocr \
+    tesseract-ocr-eng \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY --from=build /app/publish .
+ENTRYPOINT ["dotnet", "MyApp.dll"]
+```
+
+Verify Tesseract is on the `PATH` inside the built image:
+
+```bash
+docker run --rm your-image tesseract --version
+```
+
+If you install language data to a custom location, set `TESSDATA_PREFIX` explicitly:
+
+```dockerfile
+ENV TESSDATA_PREFIX=/usr/share/tesseract-ocr/4.00/tessdata/
+```
+
+## Does it integrate with LlamaIndex?
+
+Yes. Use `PdfExtractor.LlamaMarkdownReader()` to get a `PDFMarkdownReader` instance, then call `LoadData()` to get one `LlamaDocument` per page with Markdown text and metadata:
+
+```csharp
+var reader = PdfExtractor.LlamaMarkdownReader();
+var pages  = reader.LoadData("product-manual.pdf");
+
+foreach (var page in pages)
+{
+    int    pageNum  = (int)page.ExtraInfo["page"];
+    string filePath = (string)page.ExtraInfo["file_path"];
+    Console.WriteLine($"Page {pageNum}: {page.Text.Length} chars");
+}
+```
+
+## How do I use PDF4LLM with Azure OpenAI?
+
+Install the Azure OpenAI SDK alongside PDF4LLM:
+
+```bash
+dotnet add package PDF4LLM
+dotnet add package Azure.AI.OpenAI
+```
+
+Extract Markdown and pass it to a chat completion for summarisation or Q&A:
+
+```csharp
+using Azure;
+using Azure.AI.OpenAI;
+using MuPDF.NET;
+using PDF4LLM;
+
+AzureOpenAIClient client = new(
+    new Uri(Environment.GetEnvironmentVariable("AZURE_OPENAI_ENDPOINT")!),
+    new AzureKeyCredential(Environment.GetEnvironmentVariable("AZURE_OPENAI_API_KEY")!)
+);
+
+Document doc      = new Document("briefing.pdf");
+string   markdown = PdfExtractor.ToMarkdown(doc);
+doc.Close();
+
+var chatClient = client.GetChatClient("gpt-4o");
+
+var result = await chatClient.CompleteChatAsync(
+[
+    new SystemChatMessage("You are a precise document summariser."),
+    new UserChatMessage($"Summarise this document in five bullet points:\n\n{markdown}")
+]);
+
+Console.WriteLine(result.Value.Content[0].Text);
+```
+
+For RAG pipelines, embed per-page chunks using `LlamaMarkdownReader` and `text-embedding-3-small`, then retrieve by cosine similarity before passing context to a chat model. See the [Azure OpenAI integration guide](https://docs.pdf4llm.com/dotnet/integrations/azure) for full patterns including batched embedding, parallel OCR, multimodal image input, and Managed Identity auth.
+
+## How do I use Managed Identity instead of an API key for Azure OpenAI?
+
+Replace `AzureKeyCredential` with `DefaultAzureCredential`:
+
+```csharp
+using Azure.Identity;
+
+AzureOpenAIClient client = new(
+    new Uri(Environment.GetEnvironmentVariable("AZURE_OPENAI_ENDPOINT")!),
+    new DefaultAzureCredential()
+);
+```
+
+`DefaultAzureCredential` works in Azure App Service, Azure Functions, AKS, and other managed environments. For local development, run `az login` first, or use `AzureCliCredential` explicitly.
+
+Assign the `Cognitive Services OpenAI User` role to the managed identity in the Azure Portal or via the CLI:
+
+```bash
+az role assignment create \
+  --role "Cognitive Services OpenAI User" \
+  --assignee <managed-identity-object-id> \
+  --scope /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.CognitiveServices/accounts/<resource-name>
+```
+

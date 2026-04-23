@@ -1,0 +1,152 @@
+---
+title: FAQ
+description: Common questions about the `pymupdf4llm` Python library.
+icon: "circle-question"
+---
+
+<div id="apiIndicatorBadge">
+  <div class="inner pymupdf"></div>
+</div>
+
+
+## How do I install pymupdf4llm?
+
+Install from PyPI with a single command:
+
+```bash
+pip install pymupdf4llm
+```
+
+PyMuPDF is installed automatically as a dependency. Python 3.8 or later is required. To verify the installation worked, run:
+
+```python
+import pymupdf4llm
+print(pymupdf4llm.version)
+```
+
+
+
+## How do I convert a PDF to Markdown?
+
+Call `to_markdown()` with a file path. It returns a single Markdown string with reading order preserved, tables intact, and images handled.
+
+```python
+import pymupdf4llm
+
+md_text = pymupdf4llm.to_markdown("my-document.pdf")
+print(md_text)
+```
+
+To save the output to a file, use Python's `pathlib`:
+
+```python
+from pathlib import Path
+Path("output.md").write_text(md_text)
+```
+
+## What output formats are supported?
+
+There are three extraction functions, all sharing a consistent interface:
+
+| Function | Output | Best for |
+|---|---|---|
+| `to_markdown()` | Markdown string or per-page chunk dicts | LLM ingestion and RAG pipelines |
+| `to_json()` | Structured JSON with bounding boxes and font metadata | Custom pipelines needing positional data |
+| `to_text()` | Plain text, stripped of all Markdown syntax | Search indexing and NLP preprocessing |
+
+
+## How do I extract only specific pages?
+
+Pass a list of zero-based page numbers to the `pages` parameter. This works on all three extraction functions.
+
+```python
+md_text = pymupdf4llm.to_markdown("my-document.pdf", pages=[0, 1, 2])
+```
+
+Page numbers are zero-indexed, so page 1 of the document is `0`, page 2 is `1`, and so on. This is especially useful for speeding up OCR-heavy documents by limiting which pages are processed.
+
+## How do I get per-page chunks for a RAG pipeline?
+
+Set `page_chunks=True` on `to_markdown()`. This returns a list of dictionaries — one per page — each containing the text and rich metadata.
+
+```python
+chunks = pymupdf4llm.to_markdown("my-document.pdf", page_chunks=True)
+
+for chunk in chunks:
+    print(chunk["metadata"]["page"])  # page number
+    print(chunk["text"])              # Markdown content
+```
+
+Each chunk includes bounding box data, page dimensions, TOC entries, and document metadata — everything a downstream pipeline needs.
+
+## What document formats are supported as input?
+
+Standard formats — PDF, XPS, EPUB, MOBI, and more — are supported out of the box with no extra configuration. Office formats such as DOCX, PPTX, and XLSX require PyMuPDF Pro, which unlocks them via the same consistent API.
+
+See the [Supported Formats guide](/python/getting-started/supported-formats) for a full list of supported input and output formats.
+
+## Does it handle scanned or image-based PDFs?
+
+Yes. OCR runs automatically when a page contains no selectable text. Pages with native digital text skip OCR entirely, keeping processing fast. The resulting output is seamless — OCR'd pages and native pages are combined with no distinction.
+
+```python
+# OCR triggers automatically where needed
+md_text = pymupdf4llm.to_markdown("scanned-document.pdf")
+```
+
+Tesseract is the default OCR engine, included by default. RapidOCR and PaddleOCR are also available as optional engines.
+
+## How do I force OCR on every page?
+
+Use `force_ocr=True` to bypass auto-detection. This is useful when the native text layer is corrupt or misaligned with the visual content.
+
+```python
+md_text = pymupdf4llm.to_markdown("document.pdf", force_ocr=True)
+```
+
+> **Note:** Forcing OCR on clean, text-based PDFs will slow processing significantly and may reduce output quality. Only use it when you have reason to distrust the native text layer.
+
+You can also target specific pages:
+
+```python
+md_text = pymupdf4llm.to_markdown("document.pdf", pages=[2, 3], force_ocr=True)
+```
+
+## How do I disable OCR entirely?
+
+Set `use_ocr=False`. Pages with no selectable text will return empty strings. This is useful when you know your documents are always text-based, or when you want to handle OCR yourself in a downstream step.
+
+```python
+md_text = pymupdf4llm.to_markdown("document.pdf", use_ocr=False)
+```
+
+## How do I use OCR with a non-English language?
+
+Pass a Tesseract language code to `ocr_language`. The default is `"eng"`. Combine multiple languages with a `+`:
+
+```python
+md_text = pymupdf4llm.to_markdown("multilingual.pdf", ocr_language="eng+deu")
+```
+
+The corresponding Tesseract language packs must be installed on your system first. On Ubuntu:
+
+```bash
+sudo apt install tesseract-ocr-deu tesseract-ocr-fra
+```
+
+See [Tesseract Language Packs](/python/guides/OCR/tesseract-language-packs/) for more installation instructions.
+
+## Does it integrate with LangChain or LlamaIndex?
+
+Yes. There are native loaders for both frameworks. The `LlamaMarkdownReader` class implements a LlamaIndex `BaseReader` that loads documents as `Document` objects for use in pipelines and vector stores. For LangChain, a dedicated integration is also documented. Both plug into existing pipelines with no glue code.
+
+## What does `to_json()` return and when should I use it?
+
+`to_json()` returns a list of dictionaries with bounding boxes, font metadata, and layout data for every block on every page. Use it when your pipeline needs precise positional data — for example, building redaction tools, ML pipelines, or custom rendering logic. It accepts the same `pages` and `margins` parameters as the other extraction functions.
+
+See the [JSON schema](/python/reference/JSON-schema) reference for full details.
+
+## How do I detect and strip repeating headers and footers?
+
+Use the `IdentifyHeaders` class. It detects repeating page headers and footers and returns bounding boxes, plus a `get_margins()` helper that produces a tuple you can pass directly to any extraction function to exclude those regions.
+
