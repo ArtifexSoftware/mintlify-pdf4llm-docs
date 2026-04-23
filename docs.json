@@ -29,8 +29,8 @@
     "global": {
       "anchors": [
         {
-          "anchor": "pymupdf.io",
-          "href": "https://pymupdf.io",
+          "anchor": "pdf4llm.com",
+          "href": "https://pdf4llm.com",
           "icon": "globe"
         },
         {
@@ -47,6 +47,11 @@
           "anchor": "NuGet",
           "href": "https://www.nuget.org/packages/PDF4LLM/",
           "icon": "microsoft"
+        },
+        {
+          "anchor": "WebViewer",
+          "href": "https://www.pdf4llm.com/#webviewer",
+          "icon": "eye"
         },
         {
           "anchor": "Discord",
