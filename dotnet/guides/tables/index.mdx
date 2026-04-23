@@ -58,23 +58,40 @@ When using `ToJson()`, detected tables are returned as `"table"` blocks with ful
 using Newtonsoft.Json.Linq;
 using PDF4LLM;
 
-string json  = PdfExtractor.ToJson("document.pdf");
-JArray pages = JArray.Parse(json);
+string json = PdfExtractor.ToJson("document.pdf");
+JToken root = JToken.Parse(json);
+JArray pages = root switch
+{
+    JArray arr => arr,
+    JObject obj when obj["pages"] is JArray arr => arr,
+    _ => throw new InvalidOperationException("Expected a JSON array or an object containing a 'pages' array.")
+};
 
 foreach (JObject page in pages)
 {
-    int pageNum = page["page"]!.Value<int>();
+    int pageNum = page["page_number"]!.Value<int>();
     Console.WriteLine($"\nPage {pageNum}");
 
-    foreach (JObject block in page["blocks"]!)
+    foreach (JObject box in (page["boxes"] as JArray)?.OfType<JObject>() ?? Enumerable.Empty<JObject>())
     {
-        if (block["type"]!.Value<string>() != "table") continue;
+        if (!string.Equals(box["boxclass"]?.Value<string>(), "table", StringComparison.Ordinal)) continue;
 
-        var rows = block["content"]!.ToObject<List<List<string>>>()!;
-        Console.WriteLine($"Table: {rows.Count} rows × {rows[0].Count} columns");
+        var tableToken = box["table"];
+        var rows = tableToken switch
+        {
+            // Legacy/simple shape: "table" is directly a 2D array.
+            JArray arr => arr.ToObject<List<List<string>>>() ?? [],
+            // Current shape: "table" is an object and text content is in "extract".
+            JObject obj when obj["extract"] is JArray extract =>
+                extract.ToObject<List<List<string>>>() ?? [],
+            _ => []
+        };
+        int rowCount = rows.Count;
+        int columnCount = rows.Count > 0 ? rows.Max(r => r?.Count ?? 0) : 0;
+        Console.WriteLine($"Table: {rowCount} rows × {columnCount} columns");
 
         foreach (var row in rows)
-            Console.WriteLine(string.Join(" | ", row));
+            Console.WriteLine(string.Join(" | ", row ?? []));
     }
 }
 ```
@@ -115,17 +132,33 @@ using System.Linq;
 using Newtonsoft.Json.Linq;
 using PDF4LLM;
 
-string json    = PdfExtractor.ToJson("document.pdf");
-JArray pages   = JArray.Parse(json);
-var    csvLines = new List<string>();
+string json = PdfExtractor.ToJson("document.pdf");
+JToken root = JToken.Parse(json);
+JArray pages = root switch
+{
+    JArray arr => arr,
+    JObject obj when obj["pages"] is JArray arr => arr,
+    _ => throw new InvalidOperationException("Expected a JSON array or an object containing a 'pages' array.")
+};
+
+var csvLines = new List<string>();
 
 foreach (JObject page in pages)
 {
-    foreach (JObject block in page["blocks"]!)
+    foreach (JObject box in (page["boxes"] as JArray)?.OfType<JObject>() ?? Enumerable.Empty<JObject>())
     {
-        if (block["type"]!.Value<string>() != "table") continue;
+        if (!string.Equals(box["boxclass"]?.Value<string>(), "table", StringComparison.Ordinal)) continue;
 
-        var rows = block["content"]!.ToObject<List<List<string>>>()!;
+        var tableToken = box["table"];
+        var rows = tableToken switch
+        {
+            // Legacy/simple shape: "table" is directly a 2D array.
+            JArray arr => arr.ToObject<List<List<string>>>() ?? [],
+            // Current shape: "table" is an object and text content is in "extract".
+            JObject obj when obj["extract"] is JArray extract =>
+                extract.ToObject<List<List<string>>>() ?? [],
+            _ => []
+        };
 
         foreach (var row in rows)
         {
@@ -155,19 +188,34 @@ Tables that span across page boundaries are not automatically merged. Each page'
 using Newtonsoft.Json.Linq;
 using PDF4LLM;
 
-string json    = PdfExtractor.ToJson("report.pdf");
-JArray pages   = JArray.Parse(json);
+string json = PdfExtractor.ToJson("report.pdf");
+JToken root = JToken.Parse(json);
+JArray pages = root switch
+{
+    JArray arr => arr,
+    JObject obj when obj["pages"] is JArray arr => arr,
+    _ => throw new InvalidOperationException("Expected a JSON array or an object containing a 'pages' array.")
+};
 
-var mergedRows    = new List<List<string>>();
+var mergedRows = new List<List<string>>();
 int? prevColCount = null;
 
 foreach (JObject page in pages)
 {
-    foreach (JObject block in page["blocks"]!)
+    foreach (JObject box in (page["boxes"] as JArray)?.OfType<JObject>() ?? Enumerable.Empty<JObject>())
     {
-        if (block["type"]!.Value<string>() != "table") continue;
+        if (!string.Equals(box["boxclass"]?.Value<string>(), "table", StringComparison.Ordinal)) continue;
 
-        var rows     = block["content"]!.ToObject<List<List<string>>>()!;
+        var tableToken = box["table"];
+        var rows = tableToken switch
+        {
+            // Legacy/simple shape: "table" is directly a 2D array.
+            JArray arr => arr.ToObject<List<List<string>>>() ?? [],
+            // Current shape: "table" is an object and text content is in "extract".
+            JObject obj when obj["extract"] is JArray extract =>
+                extract.ToObject<List<List<string>>>() ?? [],
+            _ => []
+        };
         int colCount = rows[0].Count;
 
         if (colCount == prevColCount)

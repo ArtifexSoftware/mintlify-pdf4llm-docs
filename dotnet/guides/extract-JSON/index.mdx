@@ -38,6 +38,7 @@ Every block carries a `bbox` field — a four-element array `[x0, y0, x1, y1]` d
 
 ```csharp
 using Newtonsoft.Json.Linq;
+using PDF4LLM;
 
 string json = PdfExtractor.ToJson("document.pdf");
 JToken root = JToken.Parse(json);
@@ -75,6 +76,7 @@ Spans are the most granular unit in the JSON output. Each span represents a run 
 
 ```csharp
 using Newtonsoft.Json.Linq;
+using PDF4LLM;
 
 string json = PdfExtractor.ToJson("document.pdf");
 JToken root = JToken.Parse(json);
@@ -212,6 +214,7 @@ File.WriteAllText("output.json", json, System.Text.Encoding.UTF8);
 
 ```csharp
 using Newtonsoft.Json.Linq;
+using PDF4LLM;
 
 string json = PdfExtractor.ToJson("document.pdf");
 JToken root = JToken.Parse(json);
