@@ -981,27 +981,25 @@ Represents a single page of the PDF. Found in `pages[]`.
 
 A detected content region on a page. Found in `pages[].boxes[]`.
 
-Boxes are the primary layout unit. Each box covers a rectangular area and is
-classified into one of three types: `text`, `picture`, or `table`.
+Boxes are the primary layout unit. 
 
-<AccordionGroup>
+Each box covers a rectangular area and is classified into one of these types:
 
-  <Accordion title="Picture box example">
-
-```json
-{
-  "x0": 72,
-  "y0": 72,
-  "x1": 334.47,
-  "y1": 273.38,
-  "boxclass": "picture",
-  "image": "images/hello-world.pdf-0001-00.png",
-  "table": null,
-  "textlines": []
-}
+```text
+    text
+    picture
+    table
+    caption
+    title
+    section-header
+    page-header
+    page-footer
+    list-item
+    footnote
+    formula
 ```
 
-  </Accordion>
+<AccordionGroup>
 
   <Accordion title="Text box example">
 
@@ -1015,6 +1013,23 @@ classified into one of three types: `text`, `picture`, or `table`.
   "image": null,
   "table": null,
   "textlines": [...]
+}
+```
+
+  </Accordion>
+
+  <Accordion title="Picture box example">
+
+```json
+{
+  "x0": 72,
+  "y0": 72,
+  "x1": 334.47,
+  "y1": 273.38,
+  "boxclass": "picture",
+  "image": "images/hello-world.pdf-0001-00.png",
+  "table": null,
+  "textlines": []
 }
 ```
 
